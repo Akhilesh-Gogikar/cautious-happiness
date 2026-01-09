@@ -1,0 +1,22 @@
+# Large model files
+*.gguf
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+__pycache__/
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# Build outputs
+dist/
+build/
+.next/
+out/

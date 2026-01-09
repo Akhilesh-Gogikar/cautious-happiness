@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cyber Financial Palette - VIBRANT & HIGH CONTRAST */
+    --indigo: 243 75% 65%;
+    /* Brightened */
+    --cyber-blue: 195 90% 60%;
+    /* Brightened */
+    --gold: 45 100% 55%;
+    /* Richer Gold */
+    --neon-pink: 320 100% 60%;
+    --neon-green: 150 100% 60%;
+
+    --background: 230 35% 7%;
+    /* Deep rich blue-black */
+    --foreground: 210 40% 98%;
+
+    --card: 230 35% 9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 230 35% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Emerald Green Primary - Money/Growth - SUPER VIBRANT */
+    --primary: 155 85% 45%;
+    --primary-foreground: 144 100% 98%;
+
+    --secondary: 225 30% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 30% 18%;
+    --muted-foreground: 215 20% 70%;
+
+    --accent: 220 30% 22%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 30% 18%;
+    --input: 220 30% 15%;
+    --ring: 155 85% 45%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-foreground;
+    /* Richer background with layered gradients */
+    background-image:
+      radial-gradient(circle at 15% 15%, rgba(79, 70, 229, 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-card/60 backdrop-blur-2xl border border-white/10 shadow-xl;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card {
+    @apply bg-white/[0.04] backdrop-blur-lg border border-white/5 hover:border-white/20 transition-all duration-300;
+  }
+
+  /* More intense glass for active states */
+  .glass-card-active {
+    @apply bg-white/[0.08] backdrop-blur-xl border border-primary/30 shadow-[0_0_15px_rgba(16, 185, 129, 0.15)];
+  }
+
+  .glass-stat {
+    @apply bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/10 rounded-lg p-4 hover:border-white/20 transition-all duration-300;
+  }
+
+  .cyber-border {
+    position: relative;
+  }
+
+  .cyber-border::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+    opacity: 0.7;
+    box-shadow: 0 0 10px hsl(var(--primary));
+  }
+
+  .text-glow-primary {
+    text-shadow: 0 0 15px hsl(var(--primary) / 0.6);
+  }
+
+  .text-glow-indigo {
+    text-shadow: 0 0 15px hsl(var(--indigo) / 0.6);
+  }
+
+  .text-glow-gold {
+    text-shadow: 0 0 15px hsl(var(--gold) / 0.6);
+  }
+
+  .text-glow-neon {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
+}

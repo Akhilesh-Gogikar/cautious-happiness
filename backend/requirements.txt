@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+redis
+celery
+py-clob-client
+duckduckgo-search
+langchain-community
+google-genai
+httpx
+pydantic-settings
+python-dotenv

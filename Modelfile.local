@@ -1,0 +1,8 @@
+FROM "/Users/akhileshgogikar/Hedge Fund/OpenForecaster-8B.Q4_K_M.gguf"
+
+TEMPLATE """
+[INST] {{ .Prompt }} [/INST]
+"""
+
+PARAMETER stop "[INST]"
+PARAMETER stop "[/INST]"

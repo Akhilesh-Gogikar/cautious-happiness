@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Setup Service (One-off)
+  #    Downloads the AI model to a shared volume and initializes Ollama.
+  # ---------------------------------------------------------------------------
+  setup_model:
+    image: alpine:latest
+    container_name: polymarket-setup
+    volumes:
+      - ./backend/setup_model.sh:/setup.sh
+      - ollama_downloads:/models
+    command: >
+      sh -c "apk add --no-cache curl bash && /setup.sh"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    networks:
+      - polymarket-net
+
+  # ---------------------------------------------------------------------------
+  # 2. AI Inference Engine (Ollama)
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: polymarket-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+      - ollama_downloads:/models # Read access for 'ollama create'
+    ports:
+      - "11434:11434" # Internal default
+    networks:
+      - polymarket-net
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+    # ---------------------------------------------------------------------------
+    # 3. Backend API (FastAPI)
+    # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: polymarket-backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/polymarket}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POLYMARKET_API_KEY=${POLYMARKET_API_KEY}
+      - POLYMARKET_SECRET=${POLYMARKET_SECRET}
+      - POLYMARKET_PASSPHRASE=${POLYMARKET_PASSPHRASE}
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      setup_model:
+        condition: service_completed_successfully
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - polymarket-net
+
+  # ---------------------------------------------------------------------------
+  # 4. Frontend UI (Next.js)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: polymarket-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - polymarket-net
+
+  # ---------------------------------------------------------------------------
+  # 5. Background Worker (Celery)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: polymarket-worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/polymarket}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - polymarket-net
+
+  # ---------------------------------------------------------------------------
+  # 6. Infrastructure (DB, Redis, Nginx)
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: polymarket-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=polymarket
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - polymarket-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: polymarket-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - polymarket-net
+
+  nginx:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: polymarket-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    networks:
+      - polymarket-net
+
+networks:
+  polymarket-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
+  ollama_downloads:
