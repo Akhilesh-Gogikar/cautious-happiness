@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, Bot, User, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { chatWithModel } from '@/lib/api';
+import { ThinkingBlock } from "@/components/ui/thinking-block";
 
 interface Message {
     role: 'user' | 'assistant';
@@ -25,6 +26,23 @@ interface ChatPanelProps {
     };
 }
 
+function parseMessage(content: string) {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+    const thinking = thinkMatch ? thinkMatch[1].trim() : null;
+
+    // If we have an open <think> tag but no close tag yet, treat the rest as thinking
+    const openThinkMatch = content.match(/<think>([\s\S]*)$/);
+    const incompleteThinking = !thinkMatch && openThinkMatch ? openThinkMatch[1].trim() : null;
+
+    const effectiveThinking = thinking || incompleteThinking;
+
+    // Remove the full think block or the open think block from response display
+    let response = content.replace(/<think>[\s\S]*?<\/think>/, '');
+    response = response.replace(/<think>[\s\S]*$/, '');
+
+    return { thinking: effectiveThinking, response: response.trim() };
+}
+
 export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -37,7 +55,7 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
             setMessages([
                 {
                     role: 'assistant',
-                    content: `I've analyzed "${context.question}".\n\n**Reasoning:**\n${context.reasoning}\n\n**Critique:**\n${context.critique}\n\nWhat would you like to know about my reasoning?`
+                    content: `<think>${context.reasoning}\n\nCritique:\n${context.critique}</think>I've analyzed "${context.question}". What would you like to know about my reasoning?`
                 }
             ]);
         }
@@ -89,18 +107,22 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
 
                 <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" ref={scrollRef}>
-                        {messages.map((m, i) => (
-                            <div key={i} className={cn("flex w-full", m.role === 'user' ? "justify-end" : "justify-start")}>
-                                <div className={cn(
-                                    "max-w-[85%] rounded-lg p-3 text-xs leading-relaxed",
-                                    m.role === 'user'
-                                        ? "bg-primary/20 text-primary-foreground border border-primary/20"
-                                        : "bg-white/5 text-muted-foreground border border-white/10"
-                                )}>
-                                    <div className="whitespace-pre-wrap font-mono">{m.content}</div>
+                        {messages.map((m, i) => {
+                            const { thinking, response } = parseMessage(m.content);
+                            return (
+                                <div key={i} className={cn("flex w-full", m.role === 'user' ? "justify-end" : "justify-start")}>
+                                    <div className={cn(
+                                        "max-w-[85%] rounded-lg p-3 text-xs leading-relaxed",
+                                        m.role === 'user'
+                                            ? "bg-primary/20 text-primary-foreground border border-primary/20"
+                                            : "bg-white/5 text-muted-foreground border border-white/10"
+                                    )}>
+                                        {thinking && <ThinkingBlock content={thinking} />}
+                                        <div className="whitespace-pre-wrap font-mono">{response}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {isLoading && (
                             <div className="flex justify-start">
                                 <div className="bg-white/5 rounded-lg p-3 border border-white/10">

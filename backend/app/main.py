@@ -1,19 +1,17 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
+from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.engine import ForecasterCriticEngine, ForecastResult
-from app.models import ForecastResult, ChatRequest, ChatResponse
-from app.engine import ForecasterCriticEngine
+from app.models import ForecastResult, ChatRequest, ChatResponse, TradeSignal, PortfolioPosition, PortfolioSummary
+from app import models_db, database, auth_router
 import os
 import logging
 import json
 import time
 
-# ... (Logging config) ...
-# (We need to be careful not to delete logging config if we replace top of file)
-# This replace block is risky if I don't match exactly.
-# I'll use a safer insertion point after `app = FastAPI`.
-
+# Initialize Database
+models_db.Base.metadata.create_all(bind=database.engine)
 
 # Configure JSON Logging
 logging.basicConfig(level=logging.INFO)
@@ -36,8 +34,16 @@ logger.propagate = False
 
 app = FastAPI(title="Polymarket Hedge Fund Dashboard")
 
+# Include Auth Router
+app.include_router(auth_router.router)
+
 # CORS Configuration
-origins = ["*"] # Simplification for dev
+# Allow local frontend and other origins
+origins = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000"
+] 
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,6 +67,26 @@ async def log_requests(request: Request, call_next):
     }
     logger.info(json.dumps(log_data))
     return response
+
+@app.get("/signals", response_model=List[TradeSignal])
+async def get_signals():
+    """
+    Get active trading signals.
+    """
+    # Return mock signals for now to prevent frontend crash
+    return [
+        TradeSignal(
+            market_id="0x123...",
+            market_question="Will Bitcoin hit $100k by 2025?",
+            signal_side="BUY_YES",
+            price_estimate=0.65,
+            kelly_size_usd=1000.0,
+            expected_value=1.5,
+            rationale="Strong momentum detected by AI model",
+            status="PENDING",
+            timestamp=time.time()
+        )
+    ]
 
 # Global Exception Handler
 @app.exception_handler(Exception)
@@ -159,6 +185,8 @@ async def get_task_status(task_id: str):
         return {"id": task_id, "status": "completed", "result": result}
     return {"id": task_id, "status": "processing"}
 
+from fastapi.responses import StreamingResponse
+
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
     """
@@ -169,6 +197,17 @@ async def chat_endpoint(req: ChatRequest):
     
     response_text = await engine.chat_with_model(req)
     return {"response": response_text}
+
+@app.post("/chat/stream")
+async def stream_chat_endpoint(req: ChatRequest):
+    """
+    Stream chat with the model about a prediction context.
+    Using Server-Sent Events (SSE) compatible streaming.
+    """
+    if not req.user_message:
+        raise HTTPException(status_code=400, detail="Message required")
+    
+    return StreamingResponse(engine.stream_chat_with_model(req), media_type="text/event-stream")
 
 from py_clob_client.client import ClobClient
 from app.cache import cache_response
@@ -240,11 +279,12 @@ async def get_markets():
 
 # Placeholder for CLOB Client Wrapper
 @app.post("/trade/execute")
-async def execute_trade():
+async def execute_trade(signal: TradeSignal = None):
     """
     Constructs a transaction payload for the frontend to sign.
+    Or if running in Full AI backend mode, executes it (not exposed publicly ideally).
     """
-    # Return a mocked transaction object
+    # ... logic ...
     return {
         "status": "ready_to_sign",
         "tx_payload": {
@@ -254,3 +294,37 @@ async def execute_trade():
             "chainId": 137 # Polygon
         }
     }
+
+@app.get("/portfolio")
+async def get_portfolio():
+    """
+    Returns user portfolio summary from the real market client (or mock).
+    """
+    # Note: connect to real client if configured
+    api_key = os.getenv("POLYMARKET_API_KEY")
+    if api_key:
+        from app.market_client import RealMarketClient
+        client = RealMarketClient(
+            api_key, 
+            os.getenv("POLYMARKET_SECRET", ""), 
+            os.getenv("POLYMARKET_PASSPHRASE", "")
+        )
+        return client.get_portfolio()
+    else:
+        # Mock portfolio
+        return {
+            "balance": 10000.0,
+            "exposure": 2500.0,
+            "positions": [
+                {
+                    "asset_id": "0x123",
+                    "condition_id": "0xcde",
+                    "question": "Will Bitcoin hit $100k by 2025?",
+                    "outcome": "Yes",
+                    "price": 0.65,
+                    "size": 1000,
+                    "svalue": 650.0,
+                    "pnl": 50.0
+                }
+            ]
+        }

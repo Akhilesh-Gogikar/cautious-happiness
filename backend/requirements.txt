@@ -9,3 +9,7 @@ google-genai
 httpx
 pydantic-settings
 python-dotenv
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart

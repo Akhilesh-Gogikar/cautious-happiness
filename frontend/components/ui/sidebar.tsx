@@ -57,6 +57,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
             <nav className="flex-1 space-y-6">
                 <div className="space-y-1">
                     <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Dashboards</p>
+                    <NavItem icon={TerminalIcon} label="Terminal" active={activeView === 'dashboard'} onClick={() => onNavigate('dashboard')} badge="PRO" />
                     <NavItem icon={LayoutDashboard} label="Live Markets" active={activeView === 'markets'} onClick={() => onNavigate('markets')} badge="LIVE" />
                     <NavItem icon={PieChart} label="Portfolio" active={activeView === 'portfolio'} onClick={() => onNavigate('portfolio')} />
                     <NavItem icon={Layers} label="Strategies" active={activeView === 'strategies'} onClick={() => onNavigate('strategies')} />

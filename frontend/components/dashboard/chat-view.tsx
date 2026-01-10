@@ -4,14 +4,35 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Send, Bot, User, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Send, Bot, User, Sparkles, AlertTriangle, ShieldCheck, Activity } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { chatWithModel } from '@/lib/api';
+import { chatWithModel, streamChat } from '@/lib/api';
+import { ThinkingBlock } from '@/components/ui/thinking-block';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
     persona?: 'Analyst' | 'RiskManager';
+}
+
+function parseMessage(content: string) {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+    const thinking = thinkMatch ? thinkMatch[1].trim() : null;
+
+    // If we have an open <think> tag but no close tag yet, treat the rest as thinking
+    const openThinkMatch = content.match(/<think>([\s\S]*)$/);
+    const incompleteThinking = !thinkMatch && openThinkMatch ? openThinkMatch[1] : null;
+
+    const effectiveThinking = thinking !== null ? thinking : incompleteThinking;
+
+    // Remove the full think block or the open think block from response display
+    let response = content.replace(/<think>[\s\S]*?<\/think>/, '');
+    response = response.replace(/<think>[\s\S]*$/, '');
+
+    // Only trim the final response if we are not actively streaming an open think block
+    // Actually, it's safer to just not trim here and let the CSS/rendering handle it,
+    // but a leading trim is usually fine for the very start of the message.
+    return { thinking: effectiveThinking, response: response };
 }
 
 export function ChatView() {
@@ -24,6 +45,7 @@ export function ChatView() {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [tps, setTPS] = useState<number>(0);
     const [persona, setPersona] = useState<'Analyst' | 'RiskManager'>('Analyst');
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +62,9 @@ export function ChatView() {
         setInput('');
         setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setIsLoading(true);
+        setTPS(0);
 
         try {
-            // We use the existing chat API but with a generic context or persona-specific one
             let context = "General Market Discussion.";
             if (persona === 'RiskManager') {
                 context = "You are a conservative Risk Manager. Focus on downside protection, variance, and black swan events. Be skeptical.";
@@ -50,15 +72,48 @@ export function ChatView() {
                 context = "You are an aggressive Alpha Seeker. Focus on asymmetric upside, potential catalysts, and 'moonshots'.";
             }
 
-            const res = await chatWithModel({
-                question: "General Chat", // Dummy 
+            const stream = await streamChat({
+                question: "General Chat",
                 context: context,
                 user_message: userMsg
             });
 
-            setMessages(prev => [...prev, { role: 'assistant', content: res.response, persona }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: "", persona }]);
+
+            let fullContent = "";
+            let tokenCount = 0;
+            const startTime = performance.now();
+
+            for await (const chunk of stream()) {
+                fullContent += chunk;
+                tokenCount++;
+
+                // Update TPS roughly every 10 tokens or 500ms to avoid too many renders if needed
+                // But specifically requested TPS display, so we update it.
+                const elapsedSec = (performance.now() - startTime) / 1000;
+                if (elapsedSec > 0) {
+                    setTPS(Math.round(tokenCount / elapsedSec));
+                }
+
+                setMessages(prev => {
+                    const newMsgs = [...prev];
+                    const lastMsg = newMsgs[newMsgs.length - 1];
+                    lastMsg.content = fullContent;
+                    return newMsgs;
+                });
+            }
+
         } catch (error) {
-            setMessages(prev => [...prev, { role: 'assistant', content: "Error communicating with the neural core.", persona }]);
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                // Check if we already added a message slot
+                if (newMsgs[newMsgs.length - 1].role === 'assistant' && newMsgs[newMsgs.length - 1].content === "") {
+                    newMsgs[newMsgs.length - 1].content = "Error communicating with the neural core.";
+                } else {
+                    newMsgs.push({ role: 'assistant', content: "Error communicating with the neural core.", persona });
+                }
+                return newMsgs;
+            });
         } finally {
             setIsLoading(false);
         }
@@ -123,7 +178,13 @@ export function ChatView() {
                                 {persona === 'Analyst' ? 'QUANT_ANALYST_AGENT' : 'RISK_MANAGEMENT_CORE'}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4">
+                            {isLoading && (
+                                <div className="flex items-center gap-2 text-[10px] font-mono text-neon-blue animate-pulse">
+                                    <Activity className="w-3 h-3" />
+                                    <span>{tps} TOKENS/SEC</span>
+                                </div>
+                            )}
                             <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-muted-foreground">
                                 model: <span className="text-white">OpenForecaster (Local)</span>
                             </div>
@@ -132,55 +193,49 @@ export function ChatView() {
 
                     {/* Messages */}
                     <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" ref={scrollRef}>
-                        {messages.map((m, i) => (
-                            <div key={i} className={cn("flex w-full gap-4", m.role === 'user' ? "justify-end" : "justify-start")}>
-                                {m.role === 'assistant' && (
+                        {messages.map((m, i) => {
+                            const { thinking, response } = parseMessage(m.content);
+                            const isLastMessage = i === messages.length - 1;
+                            const isThinkingActive = isLoading && isLastMessage && (m.content.includes('<think>') && !m.content.includes('</think>'));
+
+                            return (
+                                <div key={i} className={cn("flex w-full gap-4", m.role === 'user' ? "justify-end" : "justify-start")}>
+                                    {m.role === 'assistant' && (
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
+                                            m.persona === 'Analyst'
+                                                ? "bg-primary/10 border-primary/30 text-primary"
+                                                : "bg-indigo/10 border-indigo/30 text-indigo"
+                                        )}>
+                                            <Bot className="w-4 h-4" />
+                                        </div>
+                                    )}
+
                                     <div className={cn(
-                                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
-                                        m.persona === 'Analyst'
-                                            ? "bg-primary/10 border-primary/30 text-primary"
-                                            : "bg-indigo/10 border-indigo/30 text-indigo"
+                                        "max-w-[75%] rounded-lg p-4 text-sm leading-relaxed shadow-lg backdrop-blur-sm",
+                                        m.role === 'user'
+                                            ? "bg-white/10 text-white border border-white/10"
+                                            : m.persona === 'Analyst'
+                                                ? "bg-primary/5 text-gray-200 border border-primary/20"
+                                                : "bg-indigo/5 text-gray-200 border border-indigo/20"
                                     )}>
-                                        <Bot className="w-4 h-4" />
+                                        {(thinking || isThinkingActive) && (
+                                            <ThinkingBlock
+                                                content={thinking || ""}
+                                                isStreaming={isThinkingActive}
+                                            />
+                                        )}
+                                        <div className="whitespace-pre-wrap font-sans min-h-[1.5em]">{response}</div>
                                     </div>
-                                )}
 
-                                <div className={cn(
-                                    "max-w-[75%] rounded-lg p-4 text-sm leading-relaxed shadow-lg backdrop-blur-sm",
-                                    m.role === 'user'
-                                        ? "bg-white/10 text-white border border-white/10"
-                                        : m.persona === 'Analyst'
-                                            ? "bg-primary/5 text-gray-200 border border-primary/20"
-                                            : "bg-indigo/5 text-gray-200 border border-indigo/20"
-                                )}>
-                                    <div className="whitespace-pre-wrap font-sans">{m.content}</div>
+                                    {m.role === 'user' && (
+                                        <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 text-white">
+                                            <User className="w-4 h-4" />
+                                        </div>
+                                    )}
                                 </div>
-
-                                {m.role === 'user' && (
-                                    <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 text-white">
-                                        <User className="w-4 h-4" />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-
-                        {isLoading && (
-                            <div className="flex w-full gap-4 justify-start">
-                                <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
-                                    persona === 'Analyst'
-                                        ? "bg-primary/10 border-primary/30 text-primary"
-                                        : "bg-indigo/10 border-indigo/30 text-indigo"
-                                )}>
-                                    <Bot className="w-4 h-4" />
-                                </div>
-                                <div className="bg-white/5 rounded-lg p-4 border border-white/10 flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce"></span>
-                                </div>
-                            </div>
-                        )}
+                            );
+                        })}
                     </CardContent>
 
                     {/* Input */}
@@ -207,3 +262,4 @@ export function ChatView() {
         </div>
     );
 }
+

@@ -20,3 +20,7 @@ dist/
 build/
 .next/
 out/
+
+# Nginx Runtime Data
+nginx/data/database.sqlite
+nginx/data/logs/

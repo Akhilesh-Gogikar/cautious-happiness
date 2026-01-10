@@ -13,6 +13,7 @@ import { StrategyView } from '@/components/dashboard/strategy-view';
 import { CorrelationsView } from '@/components/dashboard/correlations-view';
 import { SecurityView } from '@/components/dashboard/security-view';
 import { ChatView } from '@/components/dashboard/chat-view';
+import InstitutionalDashboard from '@/components/institutional/Dashboard';
 import { Activity, Globe, ShieldCheck, Cpu, Zap } from 'lucide-react';
 
 // Basic Placeholder Component for WIP Views
@@ -31,7 +32,7 @@ function ViewPlaceholder({ title }: { title: string }) {
 }
 
 export default function Home() {
-    const [currentView, setCurrentView] = useState('markets');
+    const [currentView, setCurrentView] = useState('dashboard'); // Default to new dashboard
 
     return (
         <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30 selection:text-white">
@@ -108,13 +109,9 @@ export default function Home() {
                         </div>
                     </header>
 
-                    {/* Stats Grid - Staggered Entry */}
-                    <div className="animate-fade-in [animation-delay:300ms] opacity-0 fill-mode-forwards">
-                        <StatCards />
-                    </div>
-
                     {/* MAIN CONTENT SWITCH */}
                     <div className="grid gap-6 animate-fade-in [animation-delay:500ms] opacity-0 fill-mode-forwards pb-10">
+                        {currentView === 'dashboard' && <InstitutionalDashboard />}
                         {currentView === 'markets' && <MarketTable />}
                         {currentView === 'portfolio' && <PortfolioView />}
                         {currentView === 'strategies' && <StrategyView />}
