@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Polymarket Dashboard Launcher
+# Alpha Terminal Dashboard Launcher
 
-echo "🚀 Initializing Hedge Fund Dashboard Protocol..."
+echo "🚀 Initializing Alpha Terminal System Protocol..."
 
 # Check Docker
 if ! command -v docker &> /dev/null; then

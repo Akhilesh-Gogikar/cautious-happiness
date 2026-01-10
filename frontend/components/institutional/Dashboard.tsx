@@ -130,7 +130,7 @@ export default function InstitutionalDashboard() {
                         <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
                             <Activity className="text-black w-5 h-5" />
                         </div>
-                        <span className="font-bold text-lg tracking-tight">ANTIGRAVITY <span className="text-emerald-500 text-xs align-top">INSTITUTIONAL</span></span>
+                        <span className="font-bold text-lg tracking-tight">ALPHA <span className="text-emerald-500 text-xs align-top">INSTITUTIONAL</span></span>
                     </div>
 
                     <div className="flex items-center gap-4">

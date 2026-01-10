@@ -1,6 +1,6 @@
-# Hedge Fund Dashboard 🚀
+# Alpha Terminal Dashboard 🚀
 
-A Bloomberg-terminal style predictive analytics dashboard for Polymarket, powered by generic AI Agents.
+A Bloomberg-terminal style predictive analytics dashboard for the Alpha Prediction Market, powered by generic AI Agents.
 
 ## Stack
 - **Frontend**: Next.js, Tailwind, Glassmorphism UI
@@ -17,7 +17,7 @@ A Bloomberg-terminal style predictive analytics dashboard for Polymarket, powere
 ### 1. Clone & Setup
 ```bash
 git clone <repo-url>
-cd hedge-fund
+cd alpha-terminal
 ```
 
 ### 2. Launch
@@ -40,10 +40,10 @@ The first run creates a `.env` file from `.env.example`. Edit this file to add A
 # Required for "Critic" agent
 GEMINI_API_KEY=your_key_here
 
-# Optional: Real Trading on Polymarket
-POLYMARKET_API_KEY=...
-POLYMARKET_SECRET=...
-POLYMARKET_PASSPHRASE=...
+# Optional: Real Trading on Alpha Prediction Market
+MARKET_API_KEY=...
+MARKET_SECRET=...
+MARKET_PASSPHRASE=...
 ```
 
 ## 🏗️ Architecture

@@ -17,7 +17,7 @@ class MarketClient:
 class RealMarketClient(MarketClient):
     def __init__(self, api_key: str, secret: str, passphrase: str):
         self.client = ClobClient(
-            "https://clob.polymarket.com", 
+            "https://clob.polymarket.com", # Exchange URL
             key=api_key, 
             secret=secret, 
             passphrase=passphrase, 
@@ -27,11 +27,11 @@ class RealMarketClient(MarketClient):
     def get_order_book(self, market_id: str) -> OrderBook:
         """
         Fetches the order book for a specific token (represented by market_id/token_id).
-        Note: terminology overlap. Polymarket has ConditionID and TokenID.
+        Note: terminology overlap. The exchange has ConditionID and TokenID.
         We assume 'market_id' passed here is the TokenID (Asset ID) we want to trade.
         """
         try:
-            # Polymarket CLOB client expects token_id for 'get_order_book'
+            # CLOB client expects token_id for 'get_order_book'
             book_data = self.client.get_order_book(market_id)
             
             asks = [OrderBookLevel(price=float(x.price), amount=float(x.size)) for x in book_data.asks]

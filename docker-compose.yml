@@ -14,7 +14,7 @@ services:
       - redis
       - ai-engine
     networks:
-      - polynet
+      - app-net
 
   frontend:
     build:
@@ -28,13 +28,13 @@ services:
     depends_on:
       - backend
     networks:
-      - polynet
+      - app-net
 
   redis:
     image: redis:alpine
     container_name: cautious_redis
     networks:
-      - polynet
+      - app-net
 
   ai-engine:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -43,8 +43,8 @@ services:
       - ./models:/models
     command: -m /models/openforecaster.gguf -c 2048 --host 0.0.0.0 --port 8080 --parallel 4
     networks:
-      - polynet
+      - app-net
 
 networks:
-  polynet:
+  app-net:
     driver: bridge

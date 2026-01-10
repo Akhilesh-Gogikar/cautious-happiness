@@ -15,7 +15,7 @@ models_db.Base.metadata.create_all(bind=database.engine)
 
 # Configure JSON Logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("polymarket_dashboard")
+logger = logging.getLogger("alpha_terminal_dashboard")
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
@@ -32,7 +32,7 @@ handler.setFormatter(JsonFormatter())
 logger.handlers = [handler]
 logger.propagate = False
 
-app = FastAPI(title="Polymarket Hedge Fund Dashboard")
+app = FastAPI(title="Alpha Terminal Dashboard")
 
 # Include Auth Router
 app.include_router(auth_router.router)
@@ -216,8 +216,8 @@ from app.cache import cache_response
 @cache_response(ttl_seconds=30)
 async def get_markets():
     """
-    Fetch active markets from Polymarket CLOB.
-    Uses 'py-clob-client' to get real-time data.
+    Fetch active markets from the CLOB.
+    Uses the client to get real-time data.
     """
     try:
         # Load Creds from Env
@@ -288,7 +288,7 @@ async def execute_trade(signal: TradeSignal = None):
     return {
         "status": "ready_to_sign",
         "tx_payload": {
-            "to": "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", # Polymarket CTF Exchange
+            "to": "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", # Real Exchange address
             "data": "0x...", # Hex data
             "value": "0",
             "chainId": 137 # Polygon

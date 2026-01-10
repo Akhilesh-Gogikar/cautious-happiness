@@ -76,7 +76,7 @@ class TradingAgent:
         # 3. Execution Logic (Kelly)
         # We are buying YES tokens.
         # If we think NO, we buy NO tokens? Or Sell Yes? 
-        # Polymarket splits YES/NO. Buying NO is buying NO token.
+        # The exchange splits YES/NO. Buying NO is buying NO token.
         # Our `SlippageAwareKelly` assumes we are buying an asset.
         
         target_token_prob = prob_yes if is_yes else (1.0 - prob_yes)
