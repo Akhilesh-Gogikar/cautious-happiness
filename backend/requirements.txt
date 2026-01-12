@@ -13,3 +13,6 @@ sqlalchemy
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+qdrant-client
+fastembed
+web3

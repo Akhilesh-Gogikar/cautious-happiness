@@ -28,7 +28,7 @@ export function PortfolioView() {
     useEffect(() => {
         const fetchPortfolio = async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
                 const res = await fetch(`${apiUrl}/portfolio`);
                 if (res.ok) {
                     const json = await res.json();

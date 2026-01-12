@@ -1,8 +1,10 @@
+# syntax=docker/dockerfile:1
 # 1. Install dependencies only when needed
 FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # 2. Rebuild the source code only when needed
 FROM node:18-alpine AS builder

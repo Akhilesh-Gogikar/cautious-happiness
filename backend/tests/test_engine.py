@@ -17,7 +17,7 @@ async def test_search_market_news(mock_env):
         ]
         
         engine = ForecasterCriticEngine()
-        sources = engine.search_market_news("Test Question")
+        sources = await engine.search_market_news("Test Question")
         assert len(sources) == 1
         assert sources[0].title == "Test News"
         assert sources[0].url == "http://test.com"

@@ -5,16 +5,63 @@ services:
     build:
       context: ./backend
     container_name: cautious_backend
+    volumes:
+
+      - ./backend/data:/app/data
     environment:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_BASE=http://ai-engine:8080/v1
       - OPENAI_API_KEY=sk-no-key-required
       - MODEL_NAME=openforecaster
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POLYMARKET_API_KEY=${POLYMARKET_API_KEY}
+      - POLYMARKET_SECRET=${POLYMARKET_SECRET}
+      - POLYMARKET_PASSPHRASE=${POLYMARKET_PASSPHRASE}
+      - CUSTODY_PROVIDER=${CUSTODY_PROVIDER:-mock}
+      - CUSTODY_API_KEY=${CUSTODY_API_KEY}
+      - CUSTODY_API_SECRET=${CUSTODY_API_SECRET}
+      - COMPLIANCE_MODE=${COMPLIANCE_MODE:-strict}
     depends_on:
-      - redis
-      - ai-engine
+      redis:
+        condition: service_healthy
+      ai-engine:
+        condition: service_healthy
     networks:
       - app-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  worker:
+    build:
+      context: ./backend
+    container_name: cautious_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend/data:/app/data
+    networks:
+      - app-net
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_BASE=http://ai-engine:8080/v1
+      - OPENAI_API_KEY=sk-no-key-required
+      - MODEL_NAME=openforecaster
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POLYMARKET_API_KEY=${POLYMARKET_API_KEY}
+      - POLYMARKET_SECRET=${POLYMARKET_SECRET}
+      - POLYMARKET_PASSPHRASE=${POLYMARKET_PASSPHRASE}
+      - CUSTODY_PROVIDER=${CUSTODY_PROVIDER:-mock}
+      - CUSTODY_API_KEY=${CUSTODY_API_KEY}
+      - CUSTODY_API_SECRET=${CUSTODY_API_SECRET}
+      - COMPLIANCE_MODE=${COMPLIANCE_MODE:-strict}
+    restart: always
 
   frontend:
     build:
@@ -26,15 +73,23 @@ services:
       - NEXT_PUBLIC_API_URL=/api
       - BACKEND_URL=http://backend:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app-net
+    restart: always
 
   redis:
     image: redis:alpine
     container_name: cautious_redis
     networks:
       - app-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
   ai-engine:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -44,7 +99,28 @@ services:
     command: -m /models/openforecaster.gguf -c 2048 --host 0.0.0.0 --port 8080 --parallel 4
     networks:
       - app-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+    restart: always
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cautious_qdrant
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
 networks:
   app-net:
     driver: bridge
+

@@ -23,19 +23,14 @@ export default function RegisterPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        try {
-            const res = await fetch('http://localhost:8000/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Registration failed');
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 800));
 
+        try {
             toast.success("Account created!");
-            login(data.access_token);
+            login('trader');
         } catch (err: any) {
-            toast.error(err.message);
+            toast.error("Registration failed");
         } finally {
             setIsLoading(false);
         }
@@ -49,10 +44,10 @@ export default function RegisterPage() {
         <div className="flex items-center justify-center min-h-screen py-10">
             <Card className="w-[400px]">
                 <CardHeader>
-                    <CardTitle>Create Account</CardTitle>
-                    <CardDescription>Get started with your secure dashboard.</CardDescription>
+                    <CardTitle>Demo Registration</CardTitle>
+                    <CardDescription>Enter any details to create a demo account.</CardDescription>
                 </CardHeader>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="full_name">Full Name</Label>

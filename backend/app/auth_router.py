@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
-from . import database, models_db, auth
+from typing import List, Optional
+from . import database, models_db, auth, models, database_users
 from datetime import timedelta
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -31,7 +31,7 @@ class RecoverVerifyRequest(BaseModel):
     new_password: str
 
 @router.post("/register", response_model=Token)
-def register(user: UserCreate, db: Session = Depends(database.get_db)):
+def register(user: UserCreate, db: Session = Depends(database_users.get_db)):
     db_user = db.query(models_db.User).filter(models_db.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -66,7 +66,7 @@ def register(user: UserCreate, db: Session = Depends(database.get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
-def login(login_req: LoginRequest, db: Session = Depends(database.get_db)):
+def login(login_req: LoginRequest, db: Session = Depends(database_users.get_db)):
     # Note: OAuth2PasswordRequestForm is standard, but keeping JSON for simplicity with frontend as requested plan
     user = db.query(models_db.User).filter(models_db.User.email == login_req.email).first()
     if not user or not auth.verify_password(login_req.password, user.hashed_password):
@@ -88,7 +88,7 @@ def login(login_req: LoginRequest, db: Session = Depends(database.get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/recover-init")
-def recover_init(req: RecoverInitRequest, db: Session = Depends(database.get_db)):
+def recover_init(req: RecoverInitRequest, db: Session = Depends(database_users.get_db)):
     user = db.query(models_db.User).filter(models_db.User.email == req.email).first()
     if not user:
          # Generic message to prevent enumeration
@@ -100,7 +100,7 @@ def recover_init(req: RecoverInitRequest, db: Session = Depends(database.get_db)
     return {"question": user.security_question.question}
 
 @router.post("/recover-verify")
-def recover_verify(req: RecoverVerifyRequest, db: Session = Depends(database.get_db)):
+def recover_verify(req: RecoverVerifyRequest, db: Session = Depends(database_users.get_db)):
     user = db.query(models_db.User).filter(models_db.User.email == req.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -129,3 +129,11 @@ def read_users_me(current_user: models_db.User = Depends(auth.get_current_user))
         "full_name": current_user.profile.full_name if current_user.profile else "",
         "role": current_user.profile.role if current_user.profile else "user"
     }
+
+@router.get("/chat-history", response_model=List[models.ChatMessage])
+def get_chat_history(
+    current_user: models_db.User = Depends(auth.get_current_user),
+    db: Session = Depends(database_users.get_db)
+):
+    history = db.query(models_db.ChatHistory).filter(models_db.ChatHistory.user_id == current_user.id).order_by(models_db.ChatHistory.timestamp.asc()).all()
+    return history

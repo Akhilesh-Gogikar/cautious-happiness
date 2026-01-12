@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Terminal, BarChart2, Activity, PlayCircle, Lock, Zap, TrendingUp, ShieldCheck, MessageSquare } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Terminal, BarChart2, Activity, PlayCircle, Lock, Zap, TrendingUp, ShieldCheck, MessageSquare, Satellite, Plane, Anchor, Radio } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 export function MarketTable() {
@@ -339,13 +339,85 @@ export function MarketTable() {
                                             {(prediction.adjusted_forecast * 100).toFixed(0)}%
                                         </div>
                                     </div>
-                                    <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
-                                        <span className="text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-tighter">Confidence_IV</span>
-                                        <div className="text-3xl font-black font-mono text-white tracking-tighter">
-                                            HIGH
+                                    <div className="bg-white/5 border border-white/10 p-3 rounded-lg relative group">
+                                        <div className="absolute top-0 right-0 p-1">
+                                            <Activity className={cn("w-3 h-3", prediction.hype_score > 0.7 ? "text-red-500 animate-pulse" : "text-muted-foreground/40")} />
+                                        </div>
+                                        <span className="text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-tighter">Hype_Level</span>
+                                        <div className={cn(
+                                            "text-3xl font-black font-mono tracking-tighter",
+                                            prediction.hype_score > 0.7 ? "text-red-500 text-glow-red" : "text-white"
+                                        )}>
+                                            {(prediction.hype_score * 100).toFixed(0)}%
                                         </div>
                                     </div>
                                 </div>
+
+                                <div className="space-y-2 bg-white/3 border border-white/5 p-3 rounded-lg">
+                                    <div className="flex items-center justify-between text-[9px] font-black font-mono text-muted-foreground uppercase tracking-wider">
+                                        <span>Social_Sentiment</span>
+                                        <span className={cn(
+                                            prediction.sentiment_score > 0.6 ? "text-primary" :
+                                                prediction.sentiment_score < 0.4 ? "text-red-400" : "text-gold"
+                                        )}>
+                                            {prediction.sentiment_score > 0.6 ? 'BULLISH' :
+                                                prediction.sentiment_score < 0.4 ? 'BEARISH' : 'NEUTRAL'}
+                                        </span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div
+                                            className={cn(
+                                                "h-full transition-all duration-1000",
+                                                prediction.sentiment_score > 0.6 ? "bg-primary" :
+                                                    prediction.sentiment_score < 0.4 ? "bg-red-400" : "bg-gold"
+                                            )}
+                                            style={{ width: `${prediction.sentiment_score * 100}%` }}
+                                        />
+                                    </div>
+                                    {prediction.discourse_analysis && (
+                                        <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-tight">
+                                            {prediction.discourse_analysis}
+                                        </p>
+                                    )}
+                                    {prediction.discourse_analysis && (
+                                        <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-tight">
+                                            {prediction.discourse_analysis}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {prediction.alternative_signals && prediction.alternative_signals.length > 0 && (
+                                    <div className="space-y-2">
+                                        <span className="text-[9px] font-black font-mono text-muted-foreground/50 uppercase tracking-[0.2em] pl-1">Alt_Data_Signals</span>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {prediction.alternative_signals.map((s: any, i: number) => (
+                                                <div key={i} className="bg-white/5 border border-white/10 p-2 rounded flex items-start gap-3">
+                                                    <div className="p-1.5 rounded bg-white/5 text-muted-foreground">
+                                                        {s.source_type === 'SATELLITE' && <Satellite className="w-3 h-3" />}
+                                                        {s.source_type === 'FLIGHT' && <Plane className="w-3 h-3" />}
+                                                        {s.source_type === 'SHIPPING' && <Anchor className="w-3 h-3" />}
+                                                        {!['SATELLITE', 'FLIGHT', 'SHIPPING'].includes(s.source_type) && <Radio className="w-3 h-3" />}
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-white leading-none">{s.signal_name}</span>
+                                                            <span className={cn(
+                                                                "text-[8px] font-mono px-1 rounded border",
+                                                                s.impact === 'BULLISH' ? "bg-primary/10 border-primary/20 text-primary" :
+                                                                    s.impact === 'BEARISH' ? "bg-red-500/10 border-red-500/20 text-red-500" :
+                                                                        "bg-white/5 border-white/10 text-muted-foreground"
+                                                            )}>{s.impact}</span>
+                                                        </div>
+                                                        <p className="text-[9px] text-muted-foreground leading-snug">{s.description}</p>
+                                                        <div className="text-[8px] font-mono text-muted-foreground/50">
+                                                            Confidence: {(s.confidence * 100).toFixed(0)}% | Value: {s.value}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="space-y-3 bg-white/3 border border-white/5 p-3 rounded-lg">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">

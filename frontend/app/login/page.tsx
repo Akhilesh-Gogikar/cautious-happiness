@@ -18,18 +18,15 @@ export default function LoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        try {
-            const res = await fetch('http://localhost:8000/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Login failed');
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-            login(data.access_token);
+        try {
+            // For demo, we just login as trader by default from this screen, 
+            // or we could map email to roles if we wanted, but simple is better.
+            login('trader');
         } catch (err: any) {
-            toast.error(err.message);
+            toast.error("Login failed");
         } finally {
             setIsLoading(false);
         }
@@ -39,10 +36,10 @@ export default function LoginPage() {
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-[350px]">
                 <CardHeader>
-                    <CardTitle>Login</CardTitle>
-                    <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
+                    <CardTitle>Demo Login</CardTitle>
+                    <CardDescription>Enter any credentials to access the demo.</CardDescription>
                 </CardHeader>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="email">Email</Label>
@@ -70,7 +67,10 @@ export default function LoginPage() {
                         <Button className="w-full" type="submit" disabled={isLoading}>
                             {isLoading ? "Logging in..." : "Login"}
                         </Button>
-                        <div className="text-sm text-center text-muted-foreground">
+                        <div className="text-sm text-center">
+                            <Link href="/login/forgot-password" title="Go to password recovery" className="text-primary hover:underline">Forgot password?</Link>
+                        </div>
+                        <div className="text-sm text-center text-muted-foreground mt-2">
                             Don't have an account? <Link href="/register" className="text-primary hover:underline">Sign up</Link>
                         </div>
                     </CardFooter>

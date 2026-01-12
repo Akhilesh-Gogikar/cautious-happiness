@@ -4,6 +4,14 @@
 
 echo "🚀 Initializing Alpha Terminal System Protocol..."
 
+# Run model setup
+echo "🧠 Checking AI Model Status..."
+bash setup_model.sh
+if [ $? -ne 0 ]; then
+    echo "❌ Model setup failed. Aborting."
+    exit 1
+fi
+
 # Check Docker
 if ! command -v docker &> /dev/null; then
     echo "❌ Docker is not installed. Please install Docker first."

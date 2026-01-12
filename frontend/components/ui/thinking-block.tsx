@@ -30,7 +30,7 @@ export function ThinkingBlock({ content, isStreaming }: ThinkingBlockProps) {
                 <span className="text-xs font-mono text-muted-foreground flex items-center gap-2">
                     {isExpanded
                         ? (isStreaming ? "Thinking Process" : "Reasoning Process")
-                        : (isStreaming ? "Thinking..." : "View Reasoning")
+                        : (isStreaming ? <span className="animate-pulse font-bold text-neon-blue">Thinking...</span> : "View Reasoning")
                     }
                     {isStreaming && !isExpanded && (
                         <span className="flex gap-0.5">

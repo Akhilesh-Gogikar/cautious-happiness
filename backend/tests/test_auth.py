@@ -3,7 +3,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pytest
 from app.main import app
-from app.database import Base, get_db
+from app.main import app
+from app.database_users import BaseUsers, get_db
 from app import models_db
 
 # Setup Test DB
@@ -26,9 +27,9 @@ client = TestClient(app)
 
 @pytest.fixture(scope="module")
 def setup_db():
-    Base.metadata.create_all(bind=engine)
+    BaseUsers.metadata.create_all(bind=engine)
     yield
-    Base.metadata.drop_all(bind=engine)
+    BaseUsers.metadata.drop_all(bind=engine)
 
 def test_register_user(setup_db):
     response = client.post(

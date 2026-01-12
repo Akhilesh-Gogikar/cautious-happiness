@@ -9,7 +9,7 @@ const { chains, publicClient } = configureChains(
 );
 
 const { connectors } = getDefaultWallets({
-    appName: 'Polymarket Hedge Fund',
+    appName: 'AlphaSignals Hedge Fund',
     projectId: 'YOUR_PROJECT_ID', // Replace with environment variable
     chains
 });

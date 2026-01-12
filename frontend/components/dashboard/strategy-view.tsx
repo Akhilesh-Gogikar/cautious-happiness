@@ -84,7 +84,7 @@ export function StrategyView() {
                     {[
                         { name: "Mean Reversion", desc: "Bet against >2 sigma moves on low volume.", active: true, pnl: "+12.4%", color: "primary" },
                         { name: "News Momentum", desc: "Follow trend on high-confidence API signals.", active: true, pnl: "+45.2%", color: "indigo" },
-                        { name: "Polymarket Arb", desc: "Exploit discrepancies between related markets.", active: false, pnl: "0.0%", color: "gold" },
+                        { name: "AlphaSignals Arb", desc: "Exploit discrepancies between related markets.", active: false, pnl: "0.0%", color: "gold" },
                         { name: "Gamma Scalping", desc: "Dynamic hedging of binary option delta.", active: false, pnl: "-2.1%", color: "fuchsia" },
                     ].map((strat, i) => (
                         <Card key={i} className={`glass-panel border-white/10 bg-black/40 relative overflow-hidden group transition-all duration-300 ${strat.active ? 'border-l-4 border-l-' + (strat.color === 'primary' ? 'primary' : strat.color) : 'opacity-60 grayscale'}`}>

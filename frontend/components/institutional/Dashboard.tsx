@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { Activity, Radio, Shield, Zap, TrendingUp, Search, Check, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DepthChart } from "@/components/dashboard/depth-chart";
+import { api } from "@/lib/api";
+
 
 // Types
 interface TradeSignal {
@@ -17,14 +20,36 @@ interface TradeSignal {
     status: "PENDING" | "APPROVED" | "EXECUTED" | "FAILED";
 }
 
+interface AlternativeSignal {
+    source_type: string;
+    signal_name: string;
+    value: string;
+    impact: "BULLISH" | "BEARISH" | "NEUTRAL";
+    confidence: number;
+    description: string;
+}
+
+interface ArbitrageOpportunity {
+    market_name: string;
+    polymarket_id: string;
+    polymarket_price: number;
+    kalshi_id: string;
+    kalshi_price: number;
+    discrepancy: number;
+    timestamp: number;
+}
+
 export default function InstitutionalDashboard() {
     const [mode, setMode] = useState<"HUMAN_REVIEW" | "FULL_AI">("HUMAN_REVIEW");
     const [signals, setSignals] = useState<TradeSignal[]>([]);
+    const [altSignals, setAltSignals] = useState<AlternativeSignal[]>([]);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [apiKey, setApiKey] = useState("");
     const [secret, setSecret] = useState("");
     const [passphrase, setPassphrase] = useState("");
     const [markets, setMarkets] = useState<any[]>([]);
+    const [selectedMarketId, setSelectedMarketId] = useState<string | undefined>(undefined);
+    const [arbitrageOps, setArbitrageOps] = useState<ArbitrageOpportunity[]>([]);
 
     // Portfolio Mock Data
     const portfolio = {
@@ -37,89 +62,99 @@ export default function InstitutionalDashboard() {
 
     useEffect(() => {
         fetchMarkets();
-        const interval = setInterval(fetchSignals, 5000);
+        fetchAltSignals();
+        fetchArbitrage();
+        const interval = setInterval(() => {
+            fetchSignals();
+            fetchAltSignals();
+            fetchArbitrage();
+        }, 5000);
         return () => clearInterval(interval);
     }, []);
 
+    const fetchAltSignals = async () => {
+        try {
+            const { data } = await api.get("/alt-data/signals");
+            if (data) {
+                setAltSignals(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch alt signals", e);
+        }
+    };
+
+
+    const fetchArbitrage = async () => {
+        try {
+            const { data } = await api.get("/arbitrage");
+            if (data) {
+                setArbitrageOps(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch arbitrage ops", e);
+        }
+    };
+
+
     const fetchMarkets = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const res = await fetch(`${apiUrl}/markets`);
-            if (res.ok) {
-                const data = await res.json();
+            const { data } = await api.get("/markets");
+            if (data) {
                 setMarkets(Array.isArray(data) ? data : []);
+                if (Array.isArray(data) && data.length > 0 && !selectedMarketId) {
+                    setSelectedMarketId(data[0].id);
+                }
             }
         } catch (e) {
             console.error("Failed to fetch markets", e);
         }
     };
 
+
     const fetchSignals = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const res = await fetch(`${apiUrl}/signals`);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    setSignals(data);
-                } else {
-                    console.error("Signals response is not an array:", data);
-                    setSignals([]);
-                }
-            } else {
-                console.error("Failed to fetch signals: SC", res.status);
+            const { data } = await api.get("/signals");
+            if (data && Array.isArray(data)) {
+                setSignals(data);
             }
         } catch (e) {
             console.error("Failed to fetch signals", e);
         }
     };
 
+
     const toggleMode = async (newMode: "HUMAN_REVIEW" | "FULL_AI") => {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         setMode(newMode);
         try {
-            await fetch(`${apiUrl}/mode/set`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mode: newMode })
-            });
+            await api.post("/mode/set", { mode: newMode });
             toast.success(`Trading Mode switched to ${newMode.replace('_', ' ')}`);
         } catch (e) {
             // Squelch error for demo if offline
         }
     };
 
+
     const saveCredentials = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const res = await fetch(`${apiUrl}/settings/credentials`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ api_key: apiKey, secret, passphrase })
-            });
-            if (res.ok) {
-                toast.success("API Credentials Connected Successfully");
-                setIsSettingsOpen(false);
-            } else {
-                toast.error("Failed to connect credentials");
-            }
+            await api.post("/settings/credentials", { api_key: apiKey, secret, passphrase });
+            toast.success("API Credentials Connected Successfully");
+            setIsSettingsOpen(false);
         } catch (e) {
             toast.error("Error saving credentials");
         }
     };
 
+
     const approveSignal = async (index: number) => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            const res = await fetch(`${apiUrl}/signals/${index}/approve`, { method: "POST" });
-            if (res.ok) {
-                toast.success("Signal Approved for Execution");
-                fetchSignals();
-            }
+            await api.post(`/signals/${index}/approve`);
+            toast.success("Signal Approved for Execution");
+            fetchSignals();
         } catch (e) {
             toast.error("Execution Failed");
         }
     };
+
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-emerald-500/30">
@@ -157,7 +192,7 @@ export default function InstitutionalDashboard() {
                             </DialogTrigger>
                             <DialogContent className="bg-[#111] border-white/10 text-white">
                                 <DialogHeader>
-                                    <DialogTitle>Connect Polymarket API</DialogTitle>
+                                    <DialogTitle>Connect AlphaSignals API</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4 py-4">
                                     <div className="space-y-2">
@@ -229,38 +264,133 @@ export default function InstitutionalDashboard() {
                         </div>
                     </div>
 
-                    {/* Market Scanner */}
-                    <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden flex flex-col h-[500px]">
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="font-bold text-sm">Market Scanner</h3>
-                            <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
+
+
+                    {/* Alternative Intelligence */}
+                    <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden flex flex-col h-[400px]">
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-emerald-500/5">
+                            <div className="flex items-center gap-2">
+                                <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />
+                                <h3 className="font-bold text-sm">Alternative Intelligence</h3>
+                            </div>
+                            <span className="text-[10px] font-mono text-emerald-500/60 uppercase">Non-Traditional Signals</span>
                         </div>
-                        <div className="overflow-y-auto flex-1 p-2 space-y-2">
-                            {markets.map((m) => (
-                                <div key={m.id} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer group transition-colors border border-transparent hover:border-white/5">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className="text-xs text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">{m.category}</span>
-                                        <span className="text-xs font-mono text-gray-400">${(m.volume_24h / 1000).toFixed(1)}k Vol</span>
+                        <div className="overflow-y-auto flex-1 p-3 space-y-3">
+                            {altSignals.length === 0 ? (
+                                <div className="text-center py-10 opacity-20 font-mono text-xs">SCANNING_SATELLITE_MESH...</div>
+                            ) : (
+                                altSignals.map((s, i) => (
+                                    <div key={i} className="bg-black/40 border border-white/5 rounded-lg p-3 space-y-2 hover:border-emerald-500/30 transition-colors">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded font-mono text-gray-400">{s.source_type}</span>
+                                            <span className={`text-[9px] font-bold ${s.impact === 'BULLISH' ? 'text-emerald-500' : s.impact === 'BEARISH' ? 'text-red-500' : 'text-gray-500'}`}>
+                                                {s.impact}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-white mb-0.5">{s.signal_name}</div>
+                                            <div className="text-[10px] text-emerald-400 font-mono italic">{s.value}</div>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                                            {s.description}
+                                        </p>
+                                        <div className="pt-1 flex items-center gap-2">
+                                            <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500" style={{ width: `${s.confidence * 100}%` }} />
+                                            </div>
+                                            <span className="text-[9px] font-mono text-gray-500">{(s.confidence * 100).toFixed(0)}% CONF</span>
+                                        </div>
                                     </div>
-                                    <div className="text-sm font-medium leading-snug mb-2 group-hover:text-emerald-400 transition-colors">
-                                        {m.question}
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs text-gray-500">
-                                        <span>Price: <span className="text-white font-mono">{m.last_price}</span></span>
-                                        <button className="opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-[10px] text-white transition-all">
-                                            Analyze
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
-                </div>
+                </div >
+
+
 
                 {/* Right Column: Signals & Activity (8 cols) */}
-                <div className="col-span-8 space-y-6">
+                < div className="col-span-8 space-y-6" >
+                    {/* Market Depth Analysis */}
+                    < div className="bg-[#111] border border-white/10 rounded-xl p-4 h-[320px] relative overflow-hidden" >
+                        <div className="absolute top-4 left-4 z-20 flex justify-between w-[calc(100%-32px)]">
+                            <div className="flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-emerald-500" />
+                                <h3 className="font-bold text-sm">Live Market Depth</h3>
+                            </div>
+                            <select
+                                className="bg-black/40 border border-white/10 rounded text-[10px] px-2 py-1 outline-none text-gray-300"
+                                value={selectedMarketId || ""}
+                                onChange={(e) => setSelectedMarketId(e.target.value)}
+                            >
+                                {markets.map(m => (
+                                    <option key={m.id} value={m.id}>{m.question.substring(0, 40)}...</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="absolute inset-0 pt-12 px-2 pb-2">
+                            <DepthChart marketId={selectedMarketId} />
+                        </div>
+                    </div >
+
+                    {/* Cross-Exchange Arbitrage */}
+                    < div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-[250px]" >
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-emerald-500/5">
+                            <div className="flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-emerald-500" />
+                                <h3 className="font-bold text-sm">Cross-Exchange Arbitrage</h3>
+                            </div>
+                            <span className="text-[10px] font-mono text-emerald-500/60 uppercase">Kalshi vs AlphaSignals</span>
+                        </div>
+                        <div className="p-4 overflow-y-auto max-h-[400px]">
+                            {arbitrageOps.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-10 text-gray-500 space-y-2">
+                                    <Activity className="w-8 h-8 opacity-20" />
+                                    <p className="text-xs font-mono">SCANNING_EXCHANGES_FOR_DISCREPANCIES...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {arbitrageOps.map((op, i) => (
+                                        <div key={i} className="bg-black/40 border border-white/5 rounded-lg p-4 hover:border-emerald-500/30 transition-all group">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-medium text-white group-hover:text-emerald-400 transition-colors line-clamp-1">{op.market_name}</h4>
+                                                <div className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/10">
+                                                    {(op.discrepancy * 100).toFixed(1)}% Spread
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="bg-white/5 rounded p-2 border border-white/5">
+                                                    <div className="text-[10px] text-gray-500 uppercase mb-1">AlphaSignals</div>
+                                                    <div className="flex items-end justify-between">
+                                                        <span className="text-lg font-mono font-bold text-emerald-500">${op.polymarket_price.toFixed(2)}</span>
+                                                        <span className="text-[9px] text-gray-600 font-mono mb-1">{op.polymarket_id.substring(0, 8)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white/5 rounded p-2 border border-white/5">
+                                                    <div className="text-[10px] text-gray-500 uppercase mb-1">Kalshi</div>
+                                                    <div className="flex items-end justify-between">
+                                                        <span className="text-lg font-mono font-bold text-emerald-500">${op.kalshi_price.toFixed(2)}</span>
+                                                        <span className="text-[9px] text-gray-600 font-mono mb-1">{op.kalshi_id}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-3 flex items-center justify-between text-[10px]">
+                                                <span className="text-gray-500">Last scanned: {new Date(op.timestamp * 1000).toLocaleTimeString()}</span>
+                                                <button className="px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-black rounded transition-all font-bold uppercase tracking-wider">
+                                                    Execute Arbitrage
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div >
+
                     {/* Signal Queue */}
-                    <div className="bg-[#111] border border-white/10 rounded-xl min-h-[300px] flex flex-col">
+                    < div className="bg-[#111] border border-white/10 rounded-xl min-h-[300px] flex flex-col" >
                         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
                             <div className="flex items-center gap-2">
                                 <Shield className="w-4 h-4 text-purple-500" />
@@ -322,20 +452,20 @@ export default function InstitutionalDashboard() {
                                 ))
                             )}
                         </div>
-                    </div>
+                    </div >
 
                     {/* Logs / Chat Context */}
-                    <div className="bg-[#111] border border-white/10 rounded-xl p-6">
+                    < div className="bg-[#111] border border-white/10 rounded-xl p-6" >
                         <h3 className="font-bold text-sm mb-4">System Logistics</h3>
                         <div className="font-mono text-xs text-gray-400 space-y-1">
                             <p><span className="text-emerald-500">[SYSTEM]</span> Initialized Trading Agent v2.0</p>
                             <p><span className="text-blue-500">[NETWORK]</span> Connected to Polygon Mainnet (RPC: 13ms)</p>
                             <p><span className="text-yellow-500">[WARN]</span> Human Review Mode Active - Auto-execution disabled</p>
                         </div>
-                    </div>
+                    </div >
 
-                </div>
-            </main>
-        </div>
+                </div >
+            </main >
+        </div >
     );
 }

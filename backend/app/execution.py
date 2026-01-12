@@ -1,7 +1,8 @@
 import logging
 import math
 from typing import List, Tuple, Optional
-from app.models import OrderBook, OrderBookLevel
+# Use string forward references or import carefully
+from app.models import OrderBook, OrderBookLevel, ExecutionParameters, ExecutionStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -172,3 +173,249 @@ class SlippageAwareKelly:
             q += step
             
         return best_size_usd, best_shares, best_vwap
+
+class AlgoOrderManager:
+    """
+    Manages execution of algorithmic orders (TWAP, VWAP, Iceberg).
+    """
+    def __init__(self, market_client):
+        self.market_client = market_client
+
+    async def execute_step(self, order_id: int, db_session):
+        """
+        Executes a single step for an active algo order.
+        """
+        from app.models_db import AlgoOrder
+        import datetime
+        
+        order = db_session.query(AlgoOrder).filter(AlgoOrder.id == order_id).first()
+        if not order or order.status != "ACTIVE":
+            return
+
+        if order.type == "TWAP":
+            await self._handle_twap(order, db_session)
+        elif order.type == "VWAP":
+            await self._handle_vwap(order, db_session)
+        elif order.type == "ICEBERG":
+            await self._handle_iceberg(order, db_session)
+
+        db_session.commit()
+
+    async def _handle_twap(self, order, db_session):
+        """
+        TWAP: Time Weighted Average Price.
+        Executes logic: Slice / Time.
+        """
+        import datetime
+        now = datetime.datetime.utcnow()
+        
+        # Calculate how many intervals we have
+        # Interval: 1 minute for simplicity in this prototype
+        interval_minutes = 1 
+        
+        if order.last_executed_at and (now - order.last_executed_at).total_seconds() < 55: # prevent double tap
+            return
+
+        # Total intervals = duration_minutes
+        # Slice size = total_size / duration_minutes
+        slice_usd = order.total_size_usd / order.duration_minutes
+        
+        # Adjust for remaining
+        execution_amount = min(slice_usd, order.remaining_size_usd)
+        
+        if execution_amount > 0:
+            success = self.market_client.place_order(order.market_id, execution_amount, "BUY")
+            if success:
+                order.remaining_size_usd -= execution_amount
+                order.last_executed_at = now
+                logger.info(f"TWAP [{order.id}]: Executed ${execution_amount}. Remaining: ${order.remaining_size_usd}")
+        
+        if order.remaining_size_usd <= 0.01: # threshold for completion
+            order.status = "COMPLETED"
+
+    async def _handle_vwap(self, order, db_session):
+        """
+        VWAP: Volume Weighted Average Price.
+        Simplified version: Similar to TWAP for now, but can be improved with volume profiles.
+        """
+        # For this prototype, we treat VWAP similarly to TWAP but rename for logical separation
+        await self._handle_twap(order, db_session)
+
+    async def _handle_iceberg(self, order, db_session):
+        """
+        Iceberg: Hides total size by only showing a small portion.
+        Since we are using a CLOB with 'place_order', we simulate this 
+        by only placing the `display_size_usd`.
+        """
+        import datetime
+        now = datetime.datetime.utcnow()
+
+        # If we have an active fill, we wait? 
+        # In this simplified exchange model, we assume place_order is immediate fill.
+        # If it were a real order book, we'd check if previous display_size was filled.
+        
+        # For prototype: We place display_size, wait a bit, place next.
+        # Real iceberg would monitor the order status.
+        
+        execution_amount = min(order.display_size_usd, order.remaining_size_usd)
+        
+        if execution_amount > 0:
+            success = self.market_client.place_order(order.market_id, execution_amount, "BUY")
+            if success:
+                order.remaining_size_usd -= execution_amount
+                order.last_executed_at = now
+                logger.info(f"ICEBERG [{order.id}]: Executed ${execution_amount}. Remaining: ${order.remaining_size_usd}")
+
+        if order.remaining_size_usd <= 0.01:
+            order.status = "COMPLETED"
+
+class SmartOrderRouter:
+    """
+    Implements Smart Order Routing (SOR) algorithms to minimize market impact.
+    """
+    def __init__(self, market_client):
+        self.market_client = market_client
+
+    def split_twap(self, total_shares: float, duration_minutes: int, interval_seconds: int) -> List[dict]:
+        """
+        Calculates TWAP chunks.
+        """
+        if duration_minutes <= 0 or interval_seconds <= 0:
+            return [{"shares": total_shares, "delay": 0}]
+
+        total_seconds = duration_minutes * 60
+        num_intervals = int(total_seconds // interval_seconds)
+        if num_intervals <= 0:
+            return [{"shares": total_shares, "delay": 0}]
+
+        shares_per_interval = total_shares / num_intervals
+        chunks = []
+        for i in range(num_intervals):
+            chunks.append({
+                "shares": shares_per_interval,
+                "delay": interval_seconds if i > 0 else 0
+            })
+        
+        # Handle remainder due to floor division if any (though usually floating point handles it)
+        return chunks
+
+    def split_iceberg(self, total_shares: float, display_size: float) -> List[dict]:
+        """
+        Calculates Iceberg chunks.
+        """
+        if display_size <= 0 or display_size >= total_shares:
+            return [{"shares": total_shares}]
+
+        chunks = []
+        remaining = total_shares
+        while remaining > 0:
+            take = min(remaining, display_size)
+            chunks.append({"shares": take})
+            remaining -= take
+            
+        return chunks
+
+    def _get_execution_price_estimate(self, market_id: str) -> float:
+        """Helper to get current top price to convert shares -> USD"""
+        try:
+            book = self.market_client.get_order_book(market_id)
+            if book.asks:
+                return book.asks[0].price
+        except Exception:
+            pass
+        return 0.5 # Fallback if no book or error, risky but consistent with prototype
+
+    def _place_market_order_shares(self, market_id: str, shares: float, side: str="BUY") -> bool:
+        """
+        Wraps place_order which takes USD, converting shares to USD estimate.
+        """
+        price = self._get_execution_price_estimate(market_id)
+        if price <= 0: return False
+        size_usd = shares * price
+        # Add small buffer to size_usd to ensure we get the shares if price moves slightly?
+        # or rely on market_client's slippage buffer.
+        return self.market_client.place_order(market_id, size_usd, side)
+
+    async def execute_strategy(self, market_id: str, total_shares: float, params: "ExecutionParameters"):
+        """
+        High-level execution coordinator.
+        """
+        logger.info(f"Executing SOR strategy: {params.strategy} for {total_shares} shares on {market_id}")
+        
+        import asyncio
+        import time
+
+        if params.strategy == ExecutionStrategy.LIQUIDITY_SNIPE:
+            # Audit Log: Strategy Start
+            try:
+                from app.database import SessionLocal
+                from app.audit_logger import AuditLogger
+                db = SessionLocal()
+                AuditLogger().log_event(db, "TRADE_EXECUTION", {
+                    "market_id": market_id,
+                    "strategy": "LIQUIDITY_SNIPE", 
+                    "total_shares": total_shares,
+                    "params": str(params)
+                })
+                db.close()
+            except Exception as e:
+                logger.error(f"Audit Log Error: {e}")
+
+            start_time = time.time()
+            min_depth_usd = params.min_depth_usd or 1000.0 # Default fallback
+            
+            logger.info(f"Starting Liquidity Snipe: Waiting for ${min_depth_usd} depth...")
+            
+            while True:
+                # Check liquidity
+                try:
+                    book = self.market_client.get_order_book(market_id)
+                    current_depth_usd = 0.0
+                    
+                    # Calculate depth up to max price
+                    for level in book.asks:
+                        if params.snipe_max_price and level.price > params.snipe_max_price:
+                            break
+                        current_depth_usd += (level.amount * level.price)
+                    
+                    if current_depth_usd >= min_depth_usd:
+                        logger.info(f"Liquidity threshold met (${current_depth_usd:.2f} >= ${min_depth_usd}). Executing!")
+                        # Execute full size
+                        self._place_market_order_shares(market_id, total_shares, "BUY")
+                        break
+                        
+                except Exception as e:
+                    logger.error(f"Error checking liquidity: {e}")
+                
+                # Check timeout
+                if params.duration_minutes and (time.time() - start_time) > (params.duration_minutes * 60):
+                    logger.warning("Liquidity Snipe timed out.")
+                    break
+                
+                wait_time = params.interval_seconds if params.interval_seconds is not None else 5
+                await asyncio.sleep(wait_time)
+
+        elif params.strategy == ExecutionStrategy.TWAP:
+            chunks = self.split_twap(total_shares, params.duration_minutes or 10, params.interval_seconds if params.interval_seconds is not None else 30)
+            for chunk in chunks:
+                if chunk["delay"] > 0:
+                    await asyncio.sleep(chunk["delay"])
+                
+                success = self._place_market_order_shares(market_id, chunk["shares"], side="BUY")
+                if not success:
+                    logger.error(f"TWAP chunk failed for {market_id}")
+                    break
+
+        elif params.strategy == ExecutionStrategy.ICEBERG:
+            chunks = self.split_iceberg(total_shares, params.display_size_shares or (total_shares / 10))
+            for chunk in chunks:
+                success = self._place_market_order_shares(market_id, chunk["shares"], side="BUY")
+                if not success:
+                    logger.error(f"Iceberg chunk failed for {market_id}")
+                    break
+                await asyncio.sleep(2) # Simulate waiting for fill
+
+        else:
+            # Fallback to single shot
+            self._place_market_order_shares(market_id, total_shares, side="BUY")
+

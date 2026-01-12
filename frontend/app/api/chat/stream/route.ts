@@ -6,12 +6,14 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const backendUrl = process.env.BACKEND_URL || 'http://backend:8000';
+        const authHeader = req.headers.get('Authorization');
         const targetUrl = `${backendUrl}/chat/stream`;
 
         const response = await fetch(targetUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(authHeader ? { 'Authorization': authHeader } : {}),
             },
             body: JSON.stringify(body),
         });

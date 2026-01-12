@@ -24,3 +24,8 @@ out/
 # Nginx Runtime Data
 nginx/data/database.sqlite
 nginx/data/logs/
+
+# Database and Logs
+*.db
+*.log
+qdrant_storage/

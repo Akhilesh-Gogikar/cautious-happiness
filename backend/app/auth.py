@@ -5,14 +5,14 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from . import models_db, database
+from . import models_db, database, database_users
 
 # CONFIG
 SECRET_KEY = "ChangeThisToSomethingSecureInProduction" # TODO: Load from env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 def verify_password(plain_password, hashed_password):
@@ -31,7 +31,33 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database_users.get_db)):
+    # Demo Mode Bypass
+    if token == "demo-token":
+        # Return a default demo trader user from the DB or a mock one
+        demo_user = db.query(models_db.User).filter(models_db.User.email == "trader@alphasignals.io").first()
+        if not demo_user:
+            # Create it if it doesn't exist to avoid breakage
+            demo_user = models_db.User(
+                 email="trader@alphasignals.io", 
+                 hashed_password=get_password_hash("demo")
+            )
+            db.add(demo_user)
+            db.commit()
+            db.refresh(demo_user)
+            
+            # Create Profile
+            demo_profile = models_db.UserProfile(
+                user_id=demo_user.id,
+                full_name="Demo Trader",
+                role="trader"
+            )
+            db.add(demo_profile)
+            db.commit()
+            
+        return demo_user
+
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -49,3 +75,4 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
     return user
+

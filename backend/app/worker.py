@@ -53,4 +53,125 @@ def run_forecast_task(self, question: str, model: str = "qwen2.5"):
         result = loop.run_until_complete(engine.run_analysis(question, model))
         return result.dict()
     except Exception as e:
+        print(f"Worker Error: {e}")
         return {"error": str(e)}
+
+@celery_app.task(name="process_algo_orders")
+def process_algo_orders_task():
+    """
+    Periodic task to process all active algo orders.
+    """
+    from app.database_users import SessionLocal
+    from app.models_db import AlgoOrder
+    from app.execution import AlgoOrderManager
+    from app.market_client import MockMarketClient, RealMarketClient
+    import os
+
+    db = SessionLocal()
+    try:
+        # 1. Setup Market Client
+        api_key = os.getenv("POLYMARKET_API_KEY")
+        if api_key:
+            market_client = RealMarketClient(
+                api_key, 
+                os.getenv("POLYMARKET_SECRET", ""), 
+                os.getenv("POLYMARKET_PASSPHRASE", "")
+            )
+        else:
+            market_client = MockMarketClient()
+
+        manager = AlgoOrderManager(market_client)
+
+        # 2. Find all active orders
+        active_orders = db.query(AlgoOrder).filter(AlgoOrder.status == "ACTIVE").all()
+        
+        # 3. Process each
+        # In a real app, we might want to run these in parallel or use subtasks
+        for order in active_orders:
+            # We need a new event loop or run sync
+            # Since market_client place_order is currently sync in mock/real, 
+            # and AlgoOrderManager methods are async, we use the loop trick.
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            loop.run_until_complete(manager.execute_step(order.id, db))
+            
+    finally:
+        db.close()
+
+# To enable periodic execution, we'd normally add to beat_schedule
+# For this demo, we'll assume it's triggered or we'll trigger it once to show it works.
+celery_app.conf.beat_schedule = {
+    'process-algo-orders-every-minute': {
+        'task': 'process_algo_orders',
+        'schedule': 60.0,
+    },
+    'sync-markets-every-5-minutes': {
+        'task': 'sync_and_classify_markets',
+        'schedule': 300.0,
+    },
+}
+
+@celery_app.task(name="sync_and_classify_markets")
+def sync_and_classify_markets():
+    """
+    Fetch new markets and classify them.
+    """
+    from app.database_users import SessionLocal
+    from app.models_db import EventRegistry
+    from py_clob_client.client import ClobClient
+    import os
+
+    db = SessionLocal()
+    try:
+        # 1. Fetch Active Markets
+        # Public Read-Only is fine for fetching markets if no keys
+        client = ClobClient("https://clob.polymarket.com", chain_id=137) 
+        
+        # simplified fetch
+        resp = client.get_markets(next_cursor="")
+        markets = resp.get('data', [])[:20] # Limit for demo
+
+        # 2. Loop and Classify
+        for m in markets:
+            m_id = m.get('condition_id')
+            question = m.get('question')
+            
+            if not m_id or not question:
+                continue
+
+            # Check DB
+            existing = db.query(EventRegistry).filter(EventRegistry.market_id == m_id).first()
+            if not existing:
+                # Classify using the global engine instance
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Reuse loop if running? No, worker is sync.
+                if loop.is_running():
+                     # This shouldn't happen in standard celery worker unless using certain pools
+                     # Fallback to creating a new loop in a thread if strictly needed, 
+                     # but here standard helper usually works.
+                     pass 
+
+                category = loop.run_until_complete(engine.classify_market(question))
+                
+                new_event = EventRegistry(
+                    market_id=m_id,
+                    question=question,
+                    category=category
+                )
+                db.add(new_event)
+                db.commit()
+                print(f"Synced & Classified: {question} -> {category}")
+
+    except Exception as e:
+        print(f"Sync logic failed: {e}")
+    finally:
+        db.close()

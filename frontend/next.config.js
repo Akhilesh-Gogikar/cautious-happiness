@@ -11,7 +11,7 @@ const nextConfig = {
     output: "standalone",
     experimental: {
         serverActions: {
-            allowedOrigins: ["localhost:3000", "0.0.0.0:3000", "127.0.0.1:3000"],
+            allowedOrigins: ["localhost:3000", "0.0.0.0:3000", "127.0.0.1:3000", "212.47.73.57:3000", "*"],
         },
     },
     // Add headers to potentially fix CSP/WalletConnect issues if needed, 
@@ -31,10 +31,11 @@ const nextConfig = {
         ];
     },
     async rewrites() {
+        console.log("Rewriting API requests to:", process.env.BACKEND_URL || 'http://backend:8000');
         return [
             {
                 source: '/api/:path*',
-                destination: process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/:path*` : 'http://localhost:8000/:path*',
+                destination: process.env.BACKEND_URL ? `${process.env.BACKEND_URL}/:path*` : 'http://backend:8000/:path*',
             },
         ];
     },

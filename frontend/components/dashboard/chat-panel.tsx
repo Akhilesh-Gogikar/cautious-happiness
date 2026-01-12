@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { chatWithModel } from '@/lib/api';
+import { chatWithModel, fetchChatHistory } from '@/lib/api';
 import { ThinkingBlock } from "@/components/ui/thinking-block";
 
 interface Message {
@@ -49,15 +49,38 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Initial context message
+    // Initial context message and history fetch
     useEffect(() => {
-        if (isOpen && messages.length === 0) {
-            setMessages([
-                {
-                    role: 'assistant',
-                    content: `<think>${context.reasoning}\n\nCritique:\n${context.critique}</think>I've analyzed "${context.question}". What would you like to know about my reasoning?`
+        if (isOpen) {
+            const loadHistory = async () => {
+                try {
+                    const history = await fetchChatHistory();
+                    if (history.length > 0) {
+                        setMessages(history.map((m: any) => ({
+                            role: m.role,
+                            content: m.content
+                        })));
+                    } else {
+                        // If no history, add the initial context message
+                        setMessages([
+                            {
+                                role: 'assistant',
+                                content: `<think>${context.reasoning}\n\nCritique:\n${context.critique}</think>I've analyzed "${context.question}". What would you like to know about my reasoning?`
+                            }
+                        ]);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch chat history:", error);
+                    // Fallback to initial context message if fetch fails
+                    setMessages([
+                        {
+                            role: 'assistant',
+                            content: `<think>${context.reasoning}\n\nCritique:\n${context.critique}</think>I've analyzed "${context.question}". What would you like to know about my reasoning?`
+                        }
+                    ]);
                 }
-            ]);
+            };
+            loadHistory();
         }
     }, [isOpen, context]);
 

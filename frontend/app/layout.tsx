@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Polymarket Dashboard",
+    title: "AlphaSignals Dashboard",
     description: "Institutional-grade AI-enabled trading platform",
     manifest: "/manifest.json",
 };

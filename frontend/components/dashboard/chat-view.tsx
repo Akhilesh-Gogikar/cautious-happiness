@@ -103,14 +103,15 @@ export function ChatView() {
                 });
             }
 
-        } catch (error) {
+        } catch (error: any) {
             setMessages(prev => {
                 const newMsgs = [...prev];
+                const errorContent = `Error communicating with the neural core: ${error.message || 'Unknown Error'}`;
                 // Check if we already added a message slot
                 if (newMsgs[newMsgs.length - 1].role === 'assistant' && newMsgs[newMsgs.length - 1].content === "") {
-                    newMsgs[newMsgs.length - 1].content = "Error communicating with the neural core.";
+                    newMsgs[newMsgs.length - 1].content = errorContent;
                 } else {
-                    newMsgs.push({ role: 'assistant', content: "Error communicating with the neural core.", persona });
+                    newMsgs.push({ role: 'assistant', content: errorContent, persona });
                 }
                 return newMsgs;
             });
