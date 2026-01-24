@@ -20,7 +20,7 @@ async def verify_rag():
     for s in result.news_summary:
         print(f"- {s.title} ({s.url})")
     
-    print("\n2. Checking Qdrant directly for stored snippets...")
+    print("\n2. Checking Vector DB directly for stored snippets...")
     retrieved = await engine.vector_db.search("Artemis crew", limit=3)
     print(f"Retrieved from Vector DB ({len(retrieved)}):")
     for s in retrieved:
@@ -33,8 +33,8 @@ async def verify_rag():
 
 if __name__ == "__main__":
     # We need to mock environment variables if running locally without docker
-    os.environ["QDRANT_HOST"] = os.getenv("QDRANT_HOST", "qdrant")
-    os.environ["QDRANT_PORT"] = os.getenv("QDRANT_PORT", "6333")
+    if "DATABASE_URL" not in os.environ:
+        os.environ["DATABASE_URL"] = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres")
     
     try:
         asyncio.run(verify_rag())

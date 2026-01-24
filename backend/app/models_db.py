@@ -70,6 +70,17 @@ class EventRegistry(BaseUsers):
     category = Column(String) # Economics, Politics, Science, Other
     last_updated = Column(DateTime, default=datetime.utcnow)
 
+class ProposedTrade(BaseUsers):
+    __tablename__ = "proposed_trades"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    description = Column(String)
+    link = Column(String, unique=True, index=True)
+    pub_date = Column(DateTime, default=datetime.utcnow)
+    ai_analysis = Column(String) # Reasoning on why it's a trade
+    status = Column(String, default="NEW") # NEW, DISMISSED, ACCEPTED
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class HistoricalMarket(BaseUsers):
     __tablename__ = "historical_markets"
 
@@ -297,3 +308,35 @@ class PaperPosition(BaseUsers):
 
 # Add relationship to User model
 User.paper_sessions = relationship("PaperTradingSession", back_populates="user")
+
+class CustomAgent(BaseUsers):
+    __tablename__ = "custom_agents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    role = Column(String, default="analyst")
+    system_prompt = Column(String, nullable=False)
+    data_sources = Column(JSON, default=[])  # List of source IDs
+    triggers = Column(JSON, default={})  # Trigger configuration
+    output_actions = Column(JSON, default={})  # Output configuration
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", back_populates="custom_agents")
+    executions = relationship("AgentExecution", back_populates="agent")
+
+class AgentExecution(BaseUsers):
+    __tablename__ = "agent_executions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(Integer, ForeignKey("custom_agents.id"))
+    context = Column(String)  # Page/context where executed
+    input_data = Column(JSON)
+    output_data = Column(JSON)
+    executed_at = Column(DateTime, default=datetime.utcnow)
+    
+    agent = relationship("CustomAgent", back_populates="executions")
+
+# Add relationship to User model
+User.custom_agents = relationship("CustomAgent", back_populates="user")

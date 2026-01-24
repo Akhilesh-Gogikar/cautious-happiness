@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { register } from '@/lib/api';
 
 export default function RegisterPage() {
     const { login } = useAuth();
@@ -23,15 +24,20 @@ export default function RegisterPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
+            // 1. Register User
+            await register(formData);
             toast.success("Account created!");
-            login('trader');
+
+            // 2. Auto Login
+            await login({
+                email: formData.email,
+                password: formData.password
+            });
+            // Redirect handled in login()
         } catch (err: any) {
-            toast.error("Registration failed");
-        } finally {
+            toast.error(err.message || "Registration failed");
             setIsLoading(false);
         }
     };
@@ -44,10 +50,10 @@ export default function RegisterPage() {
         <div className="flex items-center justify-center min-h-screen py-10">
             <Card className="w-[400px]">
                 <CardHeader>
-                    <CardTitle>Demo Registration</CardTitle>
-                    <CardDescription>Enter any details to create a demo account.</CardDescription>
+                    <CardTitle>Sign Up</CardTitle>
+                    <CardDescription>Create your account to start trading.</CardDescription>
                 </CardHeader>
-                <form onSubmit={handleSubmit} noValidate>
+                <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="full_name">Full Name</Label>

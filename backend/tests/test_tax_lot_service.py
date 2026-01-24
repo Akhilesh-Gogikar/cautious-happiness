@@ -11,13 +11,15 @@ from app.tax_lot_service import TaxLotManager
 from app.models_db import User
 
 # Setup test database
-TEST_DATABASE_URL = "sqlite:///:memory:"
+# Setup test database
+TEST_DATABASE_URL = "postgresql://postgres:postgres@db:5432/postgres"
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(bind=engine)
 
 @pytest.fixture
 def db_session():
     """Create a fresh database session for each test."""
+    BaseUsers.metadata.drop_all(bind=engine)
     BaseUsers.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
     yield session

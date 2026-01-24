@@ -4,10 +4,14 @@ from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.engine import ForecasterCriticEngine, ForecastResult
-from app.models import ForecastResult, ChatRequest, ChatResponse, TradeSignal, PortfolioPosition, PortfolioSummary, AlternativeSignal, ArbitrageOpportunity, AlgoOrderRequest, AlgoOrderResponse
+from app.models import Source, ForecastResult, ChatRequest, ChatResponse, TradeSignal, PortfolioPosition, PortfolioSummary, AlternativeSignal, ArbitrageOpportunity, AlgoOrderRequest, AlgoOrderResponse
 from app.arbitrage import ArbitrageEngine
-from app import models_db, database, auth_router, database_users, auth, historical_router, permissions, risk_router, tax_router, attribution_models, compliance_models, heatmap_models, paper_trading_models
+from app import models_db, database, auth_router, database_users, auth, historical_router, permissions, risk_router, tax_router, attribution_models, compliance_models, heatmap_models, paper_trading_models, agent_router, proposed_trades_router
 from sqlalchemy.orm import Session
+from app.connectors.aggregator import DataAggregator
+from app.connectors.coingecko import CoinGeckoConnector
+from app.connectors.yahoofinance import YahooFinanceConnector
+from app.connectors.binance import BinanceConnector
 import os
 import logging
 import json
@@ -19,6 +23,8 @@ from app.websockets.manager import manager as ws_manager
 # Force In-Memory DB hack removed - Using real DB from database_users.py
 # If you need to re-enable debugging, ensure backend/data/sql_app.db is writeable
 from app import database_users
+from app.agents.registry import registry
+from app.agents.orchestrator import orchestrator
 
 
 # Initialize Database
@@ -50,6 +56,8 @@ app.include_router(auth_router.router)
 app.include_router(historical_router.router)
 app.include_router(risk_router.router)
 app.include_router(tax_router.router)
+app.include_router(agent_router.router)
+app.include_router(proposed_trades_router.router)
 
 # CORS Configuration
 # Allow local frontend and other origins
@@ -68,12 +76,7 @@ app.add_middleware(
 async def startup_event():
     logger.info("Starting Websocket Manager...")
     await ws_manager.start()
-    logger.info("Initializing Vector Database...")
-    try:
-        engine.vector_db._ensure_collection() # Ensure collection exists on startup
-        logger.info("Vector Database initialized successfully.")
-    except Exception as e:
-        logger.error(f"Vector Database initialization failed: {e}")
+    logger.info("Vector Database initialized (PGVector).")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -162,6 +165,20 @@ from app.risk_monitoring import RiskMonitor
 from app.models import RiskReport
 risk_monitor = RiskMonitor()
 
+# Initialize Market Context Aggregator
+market_context_aggregator = DataAggregator([
+    CoinGeckoConnector(),
+    YahooFinanceConnector(),
+    BinanceConnector()
+])
+
+@app.get("/market-context", response_model=List[Source])
+async def get_market_context(query: str = "global"):
+    """
+    Get real-time market pulse from crypto and macro sources.
+    """
+    return await market_context_aggregator.fetch_all(query)
+
 @app.get("/risk/status", response_model=RiskReport)
 async def get_risk_status():
     """
@@ -196,6 +213,24 @@ async def get_arbitrage_opportunities(
     detect price discrepancies between AlphaSignals and Kalshi.
     """
     return await arbitrage_engine.find_opportunities(min_discrepancy=min_discrepancy)
+
+@app.get("/agents", response_model=List[dict])
+async def list_agents():
+    """
+    List all registered agents and their statuses.
+    """
+    return registry.list_agents()
+
+@app.post("/agents/coordinate")
+async def coordinate_agents(req: dict):
+    """
+    Trigger the orchestrator to coordinate a strategy for a given query.
+    """
+    query = req.get("query", "global market")
+    probability = req.get("probability", 0.5)
+    portfolio = req.get("portfolio", [])
+    return await orchestrator.coordinate(query, probability=probability, portfolio=portfolio)
+
 
 @app.get("/gas/polygon")
 def get_polygon_gas():
@@ -345,13 +380,14 @@ async def get_markets():
         
         # Initialize client
         # If no keys provided, it falls back to public access (usually fine for getting markets)
-        client = ClobClient(
-            "https://clob.polymarket.com", 
-            key=api_key, 
-            secret=secret, 
-            passphrase=passphrase, 
-            chain_id=137
-        )
+        # Initialize client
+        # If no keys provided, it falls back to public access (usually fine for getting markets)
+        from app.market_client import RealMarketClient
+        client = RealMarketClient(
+            api_key, 
+            secret, 
+            passphrase
+        ).client # Access internal ClobClient
 
         # Fetch active markets (limit to top 20 by volume/activity via simplified sampling)
         # Note: The raw API might return many, we filter for top volume ones.
@@ -428,19 +464,18 @@ async def get_order_book(market_id: str):
             return live_book
 
         # Check for API key to decide between Real or Mock client
+        # Use RealMarketClient for OrderBook even without keys (Public Access)
         api_key = os.getenv("POLYMARKET_API_KEY")
-        if api_key:
-            from app.market_client import RealMarketClient
-            client = RealMarketClient(
-                api_key, 
-                os.getenv("POLYMARKET_SECRET", ""), 
-                os.getenv("POLYMARKET_PASSPHRASE", "")
-            )
-            # Trigger subscription for next time
-            await ws_manager.subscribe_market(market_id)
-        else:
-            from app.market_client import MockMarketClient
-            client = MockMarketClient(api_key="", secret="", passphrase="")
+        from app.market_client import RealMarketClient
+        
+        # Pass keys if they exist, otherwise None
+        client = RealMarketClient(
+            api_key, 
+            os.getenv("POLYMARKET_SECRET", ""), 
+            os.getenv("POLYMARKET_PASSPHRASE", "")
+        )
+        # Trigger subscription for next time
+        await ws_manager.subscribe_market(market_id)
             
         return client.get_order_book(market_id)
     except Exception as e:

@@ -18,16 +18,12 @@ export default function LoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            // For demo, we just login as trader by default from this screen, 
-            // or we could map email to roles if we wanted, but simple is better.
-            login('trader');
+            await login({ email, password });
+            // Redirect is handled in AuthContext
         } catch (err: any) {
-            toast.error("Login failed");
-        } finally {
+            toast.error(err.message || "Login failed");
             setIsLoading(false);
         }
     };
@@ -36,10 +32,10 @@ export default function LoginPage() {
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-[350px]">
                 <CardHeader>
-                    <CardTitle>Demo Login</CardTitle>
-                    <CardDescription>Enter any credentials to access the demo.</CardDescription>
+                    <CardTitle>Login</CardTitle>
+                    <CardDescription>Enter your credentials to access the terminal.</CardDescription>
                 </CardHeader>
-                <form onSubmit={handleSubmit} noValidate>
+                <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="email">Email</Label>

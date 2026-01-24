@@ -41,19 +41,21 @@ export default function LandingPage() {
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-white hover:bg-white/5"
-                            onClick={() => login('trader')}
-                        >
-                            Log in
-                        </Button>
-                        <Button
-                            className="bg-primary hover:bg-primary/90 text-black font-semibold shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                            onClick={() => login('trader')}
-                        >
-                            Get Started <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
+                        <Link href="/login">
+                            <Button
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-white hover:bg-white/5"
+                            >
+                                Log in
+                            </Button>
+                        </Link>
+                        <Link href="/register">
+                            <Button
+                                className="bg-primary hover:bg-primary/90 text-black font-semibold shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                            >
+                                Get Started <ArrowRight className="ml-2 w-4 h-4" />
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </header>
@@ -83,21 +85,23 @@ export default function LandingPage() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
-                            <Button
-                                size="lg"
-                                className="h-12 px-8 text-base bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all hover:scale-105"
-                                onClick={() => login('trader')}
-                            >
-                                Start Trading Now
-                            </Button>
-                            <Button
-                                size="lg"
-                                variant="outline"
-                                className="h-12 px-8 text-base border-white/10 hover:bg-white/5 hover:text-white transition-all"
-                                onClick={() => login('trader')}
-                            >
-                                View Live Demo
-                            </Button>
+                            <Link href="/register">
+                                <Button
+                                    size="lg"
+                                    className="h-12 px-8 text-base bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all hover:scale-105"
+                                >
+                                    Start Trading Now
+                                </Button>
+                            </Link>
+                            <Link href="/login">
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-12 px-8 text-base border-white/10 hover:bg-white/5 hover:text-white transition-all"
+                                >
+                                    View Live Demo
+                                </Button>
+                            </Link>
                         </div>
                     </div>
 

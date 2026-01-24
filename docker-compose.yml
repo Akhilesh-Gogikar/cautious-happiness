@@ -1,20 +1,41 @@
-version: '3.8'
-
 services:
+  nginx:
+    image: nginx:latest
+    container_name: cautious_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/certbot-www:/var/www/certbot
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+    networks:
+      - app-net
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: ./backend
     container_name: cautious_backend
     volumes:
-
       - ./backend/data:/app/data
     environment:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_BASE=http://ai-engine:8080/v1
       - OPENAI_API_KEY=sk-no-key-required
-      - MODEL_NAME=openforecaster
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
+      - MODEL_NAME=liquid-lfm-2.5
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - POLYMARKET_API_KEY=${POLYMARKET_API_KEY}
       - POLYMARKET_SECRET=${POLYMARKET_SECRET}
@@ -24,6 +45,8 @@ services:
       - CUSTODY_API_SECRET=${CUSTODY_API_SECRET}
       - COMPLIANCE_MODE=${COMPLIANCE_MODE:-strict}
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
       ai-engine:
@@ -36,6 +59,15 @@ services:
       timeout: 10s
       retries: 3
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   worker:
     build:
@@ -50,9 +82,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_BASE=http://ai-engine:8080/v1
       - OPENAI_API_KEY=sk-no-key-required
-      - MODEL_NAME=openforecaster
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
+      - MODEL_NAME=liquid-lfm-2.5
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - POLYMARKET_API_KEY=${POLYMARKET_API_KEY}
       - POLYMARKET_SECRET=${POLYMARKET_SECRET}
@@ -62,13 +93,22 @@ services:
       - CUSTODY_API_SECRET=${CUSTODY_API_SECRET}
       - COMPLIANCE_MODE=${COMPLIANCE_MODE:-strict}
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   frontend:
     build:
       context: ./frontend
     container_name: cautious_frontend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - NEXT_PUBLIC_API_URL=/api
       - BACKEND_URL=http://backend:8000
@@ -77,7 +117,21 @@ services:
         condition: service_healthy
     networks:
       - app-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   redis:
     image: redis:alpine
@@ -90,13 +144,22 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   ai-engine:
     image: ghcr.io/ggml-org/llama.cpp:server
     container_name: cautious_ai_engine
     volumes:
       - ./models:/models
-    command: -m /models/openforecaster.gguf -c 2048 --host 0.0.0.0 --port 8080 --parallel 4
+    command: -m /models/liquid-lfm-2.5.gguf -c 16384 --host 0.0.0.0 --port 8080 --parallel 4
     networks:
       - app-net
     healthcheck:
@@ -105,22 +168,56 @@ services:
       timeout: 20s
       retries: 10
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 12G
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: cautious_qdrant
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: cautious_db
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     volumes:
-      - ./qdrant_storage:/qdrant/storage
+      - ./postgres_data:/var/lib/postgresql/data
     networks:
       - app-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    ports:
+      - "5432:5432"
+
+  certbot:
+    image: certbot/certbot
+    container_name: cautious_certbot
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/certbot-www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - app-net
     restart: always
 
 networks:
   app-net:
     driver: bridge
-

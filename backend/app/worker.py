@@ -133,7 +133,7 @@ def sync_and_classify_markets():
         
         # simplified fetch
         resp = client.get_markets(next_cursor="")
-        markets = resp.get('data', [])[:20] # Limit for demo
+        markets = resp.get('data', [])[:50] # Increased limit for better coverage
 
         # 2. Loop and Classify
         for m in markets:
@@ -175,3 +175,95 @@ def sync_and_classify_markets():
         print(f"Sync logic failed: {e}")
     finally:
         db.close()
+
+@celery_app.task(name="autonomous_explorer")
+def autonomous_explorer():
+    """
+    Background loop that:
+    1. Finds a market that hasn't been updated recently.
+    2. Runs the full analysis pipeline (Calibrated Probability).
+    3. (Optionally) Executes trades via the Engine's enabled execution logic.
+    """
+    from app.database_users import SessionLocal
+    from app.models_db import EventRegistry
+    from sqlalchemy import func
+    import datetime
+
+    db = SessionLocal()
+    try:
+        import time
+        
+        # Process up to 3 markets per task execution to ensure continuous-like operation
+        for _ in range(3):
+            # Find oldest updated market
+            market = db.query(EventRegistry).order_by(EventRegistry.last_updated.asc()).with_for_update(skip_locked=True).first()
+            
+            if not market:
+                print("Explorer: No markets found in registry.")
+                break
+
+            print(f"Explorer: Analyzing '{market.question}' (Last updated: {market.last_updated})")
+            
+            # Determine model to use
+            model = os.getenv("MODEL_NAME", "openforecaster")
+            
+            # Since worker is sync, we use the async-to-sync trick
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run Analysis
+            result = loop.run_until_complete(engine.run_analysis(market.question, model=model))
+            
+            # Update timestamp
+            market.last_updated = datetime.datetime.utcnow()
+            db.commit()
+            
+            print(f"Explorer: Analysis Complete. Reasoning snippet: {result.reasoning[:100]}...")
+            
+            # Small pause to be nice to CPUs
+            time.sleep(1)
+
+    except Exception as e:
+        print(f"Explorer Failed: {e}")
+    finally:
+        db.close()
+
+@celery_app.task(name="fetch_rss_feeds")
+def fetch_rss_feeds():
+    """
+    Task to fetch and filter RSS feeds for proposed trades.
+    """
+    from app.services.rss_service import RssService
+    import asyncio
+    
+    service = RssService()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    loop.run_until_complete(service.fetch_and_filter_feeds())
+
+# Update Schedule
+celery_app.conf.beat_schedule = {
+    'process-algo-orders-every-minute': {
+        'task': 'process_algo_orders',
+        'schedule': 60.0,
+    },
+    'sync-markets-every-5-minutes': {
+        'task': 'sync_and_classify_markets',
+        'schedule': 120.0,
+    },
+    'autonomous-explorer-every-30-seconds': {
+        'task': 'autonomous_explorer',
+        'schedule': 15.0,
+    },
+    'fetch-rss-every-minute': {
+        'task': 'fetch_rss_feeds',
+        'schedule': 60.0,
+    },
+}

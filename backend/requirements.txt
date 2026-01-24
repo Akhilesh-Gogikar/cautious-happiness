@@ -9,10 +9,14 @@ google-genai
 httpx
 pydantic-settings
 python-dotenv
-sqlalchemy
+psycopg2-binary
+pgvector
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
-qdrant-client
+# qdrant-client removed
 fastembed
 web3
+pytest
+pytest-asyncio
+httpx

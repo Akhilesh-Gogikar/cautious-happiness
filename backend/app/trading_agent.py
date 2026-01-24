@@ -171,27 +171,40 @@ class TradingAgent:
         # Start simple: trigger engine.
         
         # Note: In a real app, this is heavy.
-        result_text = await self.engine.run_main_flow(question) 
+        # Note: In a real app, this is heavy.
+        result_text = "No Analysis"
+        try:
+             # run_analysis returns a ForecastResult object, not text.
+             result_obj = await self.engine.run_analysis(question)
+             # The result_obj has .adjusted_forecast (float) and .reasoning (str)
+             
+             prob_yes = result_obj.adjusted_forecast
+             result_text = result_obj.reasoning
+             
+             # Determine direction based on probability
+             # If > 0.5, we assume "YES" is the prediction with that confidence.
+             # If < 0.5, we might interpret it as "NO is likely" (prob NO = 1 - prob YES), 
+             # but our Kelly assumes we are buying "YES" tokens with `prob_yes` chance of winning.
+             # So we can just use `prob_yes` directly.
+             
+             is_yes = prob_yes > 0.5
+        except Exception as e:
+             logger.error(f"Engine analysis failed: {e}")
+             return None 
         # We need to parse this text to get a number. 
         # This is the tricky part of "Text to Float".
         # For now, let's assume the engine output contains "Confidence: X%"
         
-        import re
-        match = re.search(r"Confidence:\s*(\d+)%", result_text)
-        confidence = 0.5
-        if match:
-            confidence = float(match.group(1)) / 100.0
+        # logic moved above
+        pass
         
         # Direction?
         # If text says "Prediction: YES", prob = confidence
         # If "Prediction: NO", prob = 1 - confidence
         
-        is_yes = "Prediction: YES" in result_text
-        if not is_yes and "Prediction: NO" not in result_text:
-            logger.warning("Agent could not determine direction. Skipping.")
-            return None
+        # logic moved above
             
-        prob_yes = confidence if is_yes else (1.0 - confidence)
+        # prob_yes = confidence if is_yes else (1.0 - confidence)
         
         # 2. Market Data
         try:

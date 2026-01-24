@@ -31,13 +31,21 @@ class MarketClient:
         raise NotImplementedError
 
 class RealMarketClient(MarketClient):
-    def __init__(self, api_key: str, secret: str, passphrase: str):
+    def __init__(self, api_key: str = None, secret: str = None, passphrase: str = None):
+        from py_clob_client.clob_types import ApiCreds
+        
+        creds = None
+        if api_key and secret and passphrase:
+            creds = ApiCreds(
+                api_key=api_key,
+                api_secret=secret,
+                api_passphrase=passphrase
+            )
+            
         self.client = ClobClient(
             "https://clob.polymarket.com", # Exchange URL
-            key=api_key, 
-            secret=secret, 
-            passphrase=passphrase, 
-            chain_id=137
+            chain_id=137,
+            creds=creds
         )
         
     def get_order_book(self, market_id: str) -> OrderBook:

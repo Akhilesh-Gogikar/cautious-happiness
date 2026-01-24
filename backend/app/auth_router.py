@@ -43,8 +43,8 @@ def register(user: UserCreate, db: Session = Depends(database_users.get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # 2. Create Profile
-    new_profile = models_db.UserProfile(user_id=new_user.id, full_name=user.full_name)
+    # 2. Create Profile with default trader role for AI feature access
+    new_profile = models_db.UserProfile(user_id=new_user.id, full_name=user.full_name, role="trader")
     db.add(new_profile)
 
     # 3. Create Security Question
@@ -132,8 +132,34 @@ def read_users_me(current_user: models_db.User = Depends(auth.get_current_user))
 
 @router.get("/chat-history", response_model=List[models.ChatMessage])
 def get_chat_history(
+    context: Optional[str] = None,
     current_user: models_db.User = Depends(auth.get_current_user),
     db: Session = Depends(database_users.get_db)
 ):
-    history = db.query(models_db.ChatHistory).filter(models_db.ChatHistory.user_id == current_user.id).order_by(models_db.ChatHistory.timestamp.asc()).all()
+    query = db.query(models_db.ChatHistory).filter(models_db.ChatHistory.user_id == current_user.id)
+    
+    if context:
+        query = query.filter(models_db.ChatHistory.context == context)
+        
+    history = query.order_by(models_db.ChatHistory.timestamp.asc()).all()
     return history
+
+@router.post("/role")
+def update_role(role_req: dict, current_user: models_db.User = Depends(auth.get_current_user), db: Session = Depends(database_users.get_db)):
+    role = role_req.get("role")
+    if not role:
+        raise HTTPException(status_code=400, detail="Role is required")
+    
+    # Optional: Validate role against allowed roles
+    allowed_roles = ["trader", "risk_manager", "developer", "auditor", "pwd"]
+    if role not in allowed_roles:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    if not current_user.profile:
+        new_profile = models_db.UserProfile(user_id=current_user.id, full_name="", role=role)
+        db.add(new_profile)
+    else:
+        current_user.profile.role = role
+    
+    db.commit()
+    return {"status": "success", "role": role}

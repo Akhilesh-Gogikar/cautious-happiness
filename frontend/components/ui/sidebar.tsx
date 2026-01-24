@@ -13,22 +13,25 @@ import {
     Terminal as TerminalIcon,
     MessageSquare,
     TrendingUp,
-    ChevronDown,
+    Cpu,
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { cn } from "@/lib/utils";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from '@/components/providers/auth-context';
+import { RoleSwitcher } from './role-switcher';
 
-const NavItem = ({ icon: Icon, label, active, badge, onClick }: { icon: any, label: string, active?: boolean, badge?: string, onClick?: () => void }) => (
-    <div
-        onClick={onClick}
+interface NavItemProps {
+    icon: any;
+    label: string;
+    href: string;
+    active?: boolean;
+    badge?: string;
+}
+
+const NavLink = ({ icon: Icon, label, href, active, badge }: NavItemProps) => (
+    <Link
+        href={href}
         className={cn(
             "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all group",
             active
@@ -44,23 +47,27 @@ const NavItem = ({ icon: Icon, label, active, badge, onClick }: { icon: any, lab
                 {badge}
             </span>
         )}
-    </div>
+    </Link>
 );
 
 interface SidebarProps {
-    activeView: string;
-    onNavigate: (view: string) => void;
+    activeView?: string;
+    onNavigate?: (view: string) => void;
     userRole?: string;
 }
 
-export function Sidebar({ activeView, onNavigate, userRole }: SidebarProps) {
-    const { switchRole, logout } = useAuth();
+export function Sidebar({ userRole }: SidebarProps) {
+    const { user, logout } = useAuth();
+    const pathname = usePathname();
+    const effectiveRole = userRole || user?.role;
 
     const isVisible = (allowedRoles: string[]) => {
-        if (!userRole) return false;
-        if (userRole === 'developer') return true;
-        return allowedRoles.includes(userRole);
+        if (!effectiveRole) return false;
+        if (effectiveRole === 'developer') return true;
+        return allowedRoles.includes(effectiveRole);
     };
+
+    const isActive = (path: string) => pathname === path;
 
     return (
         <aside className="w-64 h-full border-r border-white/10 bg-black/40 backdrop-blur-xl flex flex-col p-4 space-y-8 relative z-40">
@@ -69,33 +76,49 @@ export function Sidebar({ activeView, onNavigate, userRole }: SidebarProps) {
                     <Zap className="w-5 h-5 text-black fill-current" />
                 </div>
                 <div>
-                    <h2 className="text-sm font-bold tracking-tighter text-white">POLYMARKET</h2>
+                    <h2 className="text-sm font-bold tracking-tighter text-white">ALPHASIGNALS</h2>
                     <p className="text-[10px] text-muted-foreground font-mono leading-none tracking-wider">QUANT_SYSTEM / v4</p>
                 </div>
             </div>
 
             <nav className="flex-1 space-y-6">
                 <div className="space-y-1">
+                    <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Mission Control</p>
+                    {isVisible(['trader', 'risk_manager']) && (
+                        <Link
+                            href="/cockpit"
+                            className={cn(
+                                "flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all group mb-4",
+                                isActive('/cockpit')
+                                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                    : "bg-white/5 border border-white/5 text-muted-foreground hover:bg-white/10 hover:text-white hover:border-white/10"
+                            )}>
+                            <div className="flex items-center gap-3">
+                                <TerminalIcon className={cn("w-4 h-4", isActive('/cockpit') ? "text-indigo-400" : "text-indigo-500/70 group-hover:text-indigo-400 transition-colors")} />
+                                <span className="text-xs font-bold tracking-wide">AI Cockpit</span>
+                            </div>
+                            <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_8px_#6366f1]" />
+                        </Link>
+                    )}
+                </div>
+
+                <div className="space-y-1">
                     <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Dashboards</p>
-                    {isVisible(['trader', 'pwd']) && <NavItem icon={TerminalIcon} label="Terminal" active={activeView === 'dashboard'} onClick={() => onNavigate('dashboard')} badge="PRO" />}
-                    {isVisible(['trader', 'risk_manager', 'auditor', 'pwd']) && <NavItem icon={LayoutDashboard} label="Live Markets" active={activeView === 'markets'} onClick={() => onNavigate('markets')} badge="LIVE" />}
-                    {isVisible(['trader', 'risk_manager', 'auditor', 'pwd']) && <NavItem icon={PieChart} label="Portfolio" active={activeView === 'portfolio'} onClick={() => onNavigate('portfolio')} />}
-                    {isVisible(['trader']) && <NavItem icon={Layers} label="Strategies" active={activeView === 'strategies'} onClick={() => onNavigate('strategies')} />}
+                    {isVisible(['trader', 'pwd']) && <NavLink icon={TerminalIcon} label="Trade Desk" href="/tradedesk" active={isActive('/tradedesk')} badge="PRO" />}
+                    {isVisible(['trader', 'risk_manager', 'auditor', 'pwd']) && <NavLink icon={LayoutDashboard} label="Institutional" href="/dashboard" active={isActive('/dashboard')} badge="LIVE" />}
+                    {isVisible(['trader', 'risk_manager', 'auditor', 'pwd']) && <NavLink icon={PieChart} label="Portfolio" href="/portfolio" active={isActive('/portfolio')} />}
+                    {isVisible(['trader', 'risk_manager', 'auditor', 'pwd']) && <NavLink icon={TrendingUp} label="P&L Analytics" href="/pnl" active={isActive('/pnl')} />}
                 </div>
 
                 <div className="space-y-1">
                     <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Analysis Tools</p>
-                    {isVisible(['trader', 'risk_manager']) && <NavItem icon={TrendingUp} label="Probability Heatmap" active={activeView === 'heatmap'} onClick={() => onNavigate('heatmap')} badge="NEW" />}
-                    {isVisible(['trader', 'risk_manager']) && <NavItem icon={BarChart3} label="Correlations" active={activeView === 'correlations'} onClick={() => onNavigate('correlations')} />}
-                    {isVisible(['trader']) && <NavItem icon={TerminalIcon} label="Quant Engine" active={activeView === 'quant'} onClick={() => onNavigate('quant')} />}
-                    {isVisible(['trader', 'risk_manager', 'pwd']) && <NavItem icon={MessageSquare} label="Analyst Chat" active={activeView === 'chat'} onClick={() => onNavigate('chat')} badge="AI" />}
-                    {isVisible(['trader']) && <NavItem icon={Zap} label="Alpha Scanner" active={activeView === 'alpha'} onClick={() => onNavigate('alpha')} />}
+                    {isVisible(['trader', 'risk_manager']) && <NavLink icon={BarChart3} label="Attribution" href="/attribution" active={isActive('/attribution')} badge="NEW" />}
+                    {isVisible(['trader', 'risk_manager']) && <NavLink icon={Cpu} label="AI Hub" href="/ai-hub" active={isActive('/ai-hub')} badge="AI" />}
                 </div>
 
                 <div className="space-y-1">
-                    <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">System</p>
-                    {isVisible(['risk_manager', 'auditor']) && <NavItem icon={Shield} label="Security" active={activeView === 'security'} onClick={() => onNavigate('security')} />}
-                    {isVisible(['risk_manager']) && <NavItem icon={Settings} label="Config" active={activeView === 'config'} onClick={() => onNavigate('config')} />}
+                    <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Tax & Compliance</p>
+                    {isVisible(['trader', 'risk_manager', 'auditor']) && <NavLink icon={Shield} label="Tax Center" href="/tax" active={isActive('/tax')} />}
                 </div>
             </nav>
 
@@ -113,39 +136,22 @@ export function Sidebar({ activeView, onNavigate, userRole }: SidebarProps) {
                 </div>
 
                 {/* USER PROFILE SECTION */}
-                <div className="pt-2 space-y-2">
+                <div className="pt-2 space-y-4">
+                    <RoleSwitcher />
+
                     <div className="w-full p-2 rounded-lg bg-white/5 border border-white/10 space-y-2">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary/20 to-indigo-500/20 border border-white/10 flex items-center justify-center">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-white">
-                                    DEMO MODE
+                            <div className="flex flex-col overflow-hidden">
+                                <span className="text-xs font-bold text-white truncate" title={user?.full_name}>
+                                    {user?.full_name || 'User'}
                                 </span>
-                                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-                                    <span className="text-emerald-500">●</span> ACTIVE
+                                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider truncate">
+                                    <span className="text-emerald-500">●</span> {user?.role || 'Active'}
                                 </span>
                             </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider pl-1">Switch Role</label>
-                            <Select
-                                value={userRole || 'trader'}
-                                onValueChange={(role) => switchRole(role)}
-                            >
-                                <SelectTrigger className="h-8 bg-black/20 border-white/10 text-xs">
-                                    <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="trader">Trader</SelectItem>
-                                    <SelectItem value="risk_manager">Risk Manager</SelectItem>
-                                    <SelectItem value="auditor">Auditor</SelectItem>
-                                    <SelectItem value="developer">Developer</SelectItem>
-                                    <SelectItem value="pwd">Private Wealth</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
                     </div>
 

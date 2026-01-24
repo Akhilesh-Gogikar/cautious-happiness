@@ -6,8 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_attribution_api.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@db:5432/postgres"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def override_get_db():
@@ -29,6 +29,7 @@ def client():
 def auth_headers(client):
     """Get authentication headers for API requests."""
     # Create test user
+    models_db.BaseUsers.metadata.drop_all(bind=engine)
     models_db.BaseUsers.metadata.create_all(bind=engine)
     
     # Register user

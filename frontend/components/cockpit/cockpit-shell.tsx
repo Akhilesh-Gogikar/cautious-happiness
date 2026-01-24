@@ -18,30 +18,34 @@ export function CockpitShell({
 }: CockpitShellProps) {
     return (
         <div className={cn(
-            "flex h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-[#0a0a0a] to-black",
+            "flex flex-col h-full w-full overflow-hidden",
             className
         )}>
-            {/* Left Reasoning Sidebar - "The Stream" */}
-            <aside className="w-[400px] flex-shrink-0 border-r border-white/10 bg-black/40 backdrop-blur-xl transition-all duration-300">
-                <div className="flex h-full flex-col">
-                    {sidebar}
-                </div>
-            </aside>
+            <div className="flex flex-1 min-h-0">
+                {/* Left Reasoning Sidebar - "The Stream" */}
+                {sidebar && (
+                    <aside className="w-[350px] flex-shrink-0 border-r border-white/5 bg-black/20 backdrop-blur-md transition-all duration-300">
+                        <div className="flex h-full flex-col">
+                            {sidebar}
+                        </div>
+                    </aside>
+                )}
 
-            {/* Main Content Area */}
-            <main className="flex min-w-0 flex-1 flex-col relative">
-                {/* Top Header / Status Bar could go here */}
+                {/* Main Content Area */}
+                <main className="flex min-w-0 flex-1 flex-col relative overflow-hidden">
+                    {/* Primary View */}
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+                        {children}
+                    </div>
 
-                {/* Primary View */}
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
-                    {children}
-                </div>
-
-                {/* Bottom Timeline Overlay */}
-                <div className="h-48 border-t border-white/10 bg-black/60 backdrop-blur-md transition-all duration-300">
-                    {timeline}
-                </div>
-            </main>
+                    {/* Bottom Timeline Overlay */}
+                    {timeline && (
+                        <div className="h-48 border-t border-white/10 bg-black/60 backdrop-blur-md transition-all duration-300 flex-shrink-0">
+                            {timeline}
+                        </div>
+                    )}
+                </main>
+            </div>
         </div>
     );
 }

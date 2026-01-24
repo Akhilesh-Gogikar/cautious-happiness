@@ -8,13 +8,15 @@ from app.market_client import MockMarketClient
 from app.engine import ForecasterCriticEngine
 
 # Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_drawdown.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Test database setup
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@db:5432/postgres"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture
 def db_session():
     """Create a fresh database for each test."""
+    BaseUsers.metadata.drop_all(bind=engine)
     BaseUsers.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     yield db

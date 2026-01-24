@@ -29,3 +29,23 @@ nginx/data/logs/
 *.db
 *.log
 qdrant_storage/
+
+# PostgreSQL data
+postgres_data/
+
+# SSL Certificates
+nginx/certs/
+
+# Local scripts and temporary files
+reproduce_signup.sh
+setup_dev_ssl.sh
+verify_chat_agent.py
+backend/tests/verify_autonomous.py
+backend/tests/verify_worker_explorer.py
+
+# Backup files
+*.bak
+
+# Local data scripts
+backend/data/check_akhilesh.py
+backend/data/verify_autonomous.py

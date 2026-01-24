@@ -3,31 +3,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-
-interface User {
-    email: string;
-    full_name: string;
-    role: string;
-}
+import { login as apiLogin, getMe as apiGetMe, User, LoginRequest, api } from '@/lib/api';
 
 interface AuthContextType {
     user: User | null;
-    login: (role?: string) => void;
+    login: (credentials: LoginRequest) => Promise<void>;
     logout: () => void;
     isAuthenticated: boolean;
     isLoading: boolean;
-    switchRole: (role: string) => void;
+    switchRole: (role: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_USERS: Record<string, User> = {
-    'trader': { email: 'trader@alphasignals.io', full_name: 'Active Trader', role: 'trader' },
-    'risk_manager': { email: 'risk@alphasignals.io', full_name: 'Risk Officer', role: 'risk_manager' },
-    'auditor': { email: 'audit@alphasignals.io', full_name: 'Compliance Auditor', role: 'auditor' },
-    'developer': { email: 'dev@alphasignals.io', full_name: 'System Dev', role: 'developer' },
-    'pwd': { email: 'vip@alphasignals.io', full_name: 'Private Wealth', role: 'pwd' },
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -35,40 +22,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
-        // Hydrate from local storage
-        const storedRole = localStorage.getItem('demo_role');
-        const token = localStorage.getItem('token');
-
-        if (token && storedRole && DEMO_USERS[storedRole]) {
-            setUser(DEMO_USERS[storedRole]);
-        }
-        setIsLoading(false);
+        const initAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const userData = await apiGetMe();
+                    setUser(userData);
+                } catch (error) {
+                    console.error('Failed to restore session:', error);
+                    localStorage.removeItem('token');
+                }
+            }
+            setIsLoading(false);
+        };
+        initAuth();
     }, []);
 
-    const login = (role: string = 'trader') => {
-        const demoUser = DEMO_USERS[role] || DEMO_USERS['trader'];
-        localStorage.setItem('token', 'demo-token');
-        localStorage.setItem('demo_role', demoUser.role);
-        setUser(demoUser);
-        toast.success(`Welcome back, ${demoUser.full_name}`);
-        router.push('/tradedesk');
-    };
+    const login = async (credentials: LoginRequest) => {
+        try {
+            const response = await apiLogin(credentials);
+            localStorage.setItem('token', response.access_token);
 
-    const switchRole = (role: string) => {
-        const demoUser = DEMO_USERS[role];
-        if (demoUser) {
-            localStorage.setItem('demo_role', role);
-            setUser(demoUser);
-            toast.info(`Switched view to ${demoUser.full_name} (${role})`);
+            const userData = await apiGetMe();
+            setUser(userData);
+
+            toast.success(`Welcome back, ${userData.full_name}`);
+            router.push('/tradedesk');
+        } catch (error: any) {
+            console.error('Login error:', error);
+            throw error; // Let the component handle the specific error message
         }
     };
 
     const logout = () => {
         localStorage.removeItem('token');
-        localStorage.removeItem('demo_role');
         setUser(null);
+        toast.success('Logged out successfully');
         router.push('/');
-        toast.info('Logged out');
+    };
+
+    const switchRole = async (role: string) => {
+        try {
+            await api.updateUserRole(role);
+            const userData = await apiGetMe();
+            setUser(userData);
+            toast.success(`Role switched to ${role}`);
+        } catch (error: any) {
+            console.error('Failed to switch role:', error);
+            toast.error('Failed to switch role');
+        }
     };
 
     return (

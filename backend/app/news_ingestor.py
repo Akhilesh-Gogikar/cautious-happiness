@@ -36,7 +36,7 @@ class NewsIngestor:
             if sources:
                 try:
                     await self.vector_db.upsert_sources(sources, metadata={"query": query})
-                    logger.info(f"Upserted {len(sources)} sources to Qdrant.")
+                    logger.info(f"Upserted {len(sources)} sources to Vector DB.")
                 except Exception as e:
                     logger.error(f"Vector DB Upsert failed: {e}")
             

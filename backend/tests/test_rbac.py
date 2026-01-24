@@ -8,13 +8,15 @@ from app import models_db, auth
 from datetime import timedelta
 
 # Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_rbac.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Test database setup
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@db:5432/postgres"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Ensure models are loaded
 import app.models_db
 
+BaseUsers.metadata.drop_all(bind=engine)
 BaseUsers.metadata.create_all(bind=engine)
 
 

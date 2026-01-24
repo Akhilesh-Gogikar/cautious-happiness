@@ -8,9 +8,10 @@ from app.database_users import BaseUsers, get_db
 from app import models_db
 
 # Setup Test DB
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_db.db"
+# Setup Test DB
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@db:5432/postgres"
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -27,6 +28,7 @@ client = TestClient(app)
 
 @pytest.fixture(scope="module")
 def setup_db():
+    BaseUsers.metadata.drop_all(bind=engine)
     BaseUsers.metadata.create_all(bind=engine)
     yield
     BaseUsers.metadata.drop_all(bind=engine)

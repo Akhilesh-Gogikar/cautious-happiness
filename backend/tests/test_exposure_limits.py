@@ -9,8 +9,10 @@ from app.database_users import BaseUsers
 import app.models_db # Import all to register models
 
 # Setup in-memory DB
-engine = create_engine("sqlite:///:memory:")
+# Setup Postgres DB
+engine = create_engine("postgresql://postgres:postgres@db:5432/postgres")
 SessionLocal = sessionmaker(bind=engine)
+BaseUsers.metadata.drop_all(bind=engine)
 BaseUsers.metadata.create_all(bind=engine)
 
 @pytest.fixture

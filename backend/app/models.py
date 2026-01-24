@@ -86,6 +86,7 @@ class TradeSignal(BaseModel):
 class ChatRequest(BaseModel):
     user_message: str
     context: Optional[str] = None
+    selected_agents: List[str] = []
 
 class ChatResponse(BaseModel):
     response: str
