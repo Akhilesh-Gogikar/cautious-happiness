@@ -63,7 +63,7 @@ export function MarketTable() {
 
         try {
             const { task_id } = await predictMarket(market.question);
-            toast.info("Task Dispatched", { description: "Quant Engine Analyzing..." });
+            toast.info("Mirroring Initialized", { description: "Analyzing AI Narratives vs Physical Reality..." });
 
             // Poll for result
             const interval = setInterval(async () => {
@@ -89,7 +89,7 @@ export function MarketTable() {
 
                     setPrediction(status.result);
                     setPredicting(false);
-                    toast.success("Analysis Complete", { description: "Signals generated." });
+                    toast.success("Mirror Analysis Complete", { description: "Divergence audited." });
                 }
             }, 1000);
 
@@ -120,10 +120,10 @@ export function MarketTable() {
                             <div className="p-1.5 rounded bg-primary/10 border border-primary/20">
                                 <BarChart2 className="w-4 h-4 text-primary" />
                             </div>
-                            <CardTitle className="text-sm font-black font-mono tracking-widest text-muted-foreground uppercase">MARKET_FEED_LIVE</CardTitle>
+                            <CardTitle className="text-sm font-black font-mono tracking-widest text-muted-foreground uppercase">COMMODITY_INTELLIGENCE_FEED</CardTitle>
                         </div>
                         <div className="flex gap-1.5 bg-black/40 p-1 rounded-md border border-white/5">
-                            {['ALL', 'CRYPTO', 'TECH', 'ECONOMICS'].map((cat) => (
+                            {['ALL', 'ENERGY', 'METALS', 'AGRI'].map((cat) => (
                                 <button
                                     key={cat}
                                     onClick={() => setFilter(cat)}
@@ -144,19 +144,19 @@ export function MarketTable() {
                             <TableHeader>
                                 <TableRow className="border-white/5 hover:bg-transparent bg-white/[0.01]">
                                     <TableHead className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 w-[50px] uppercase tracking-wider pl-6">#</TableHead>
-                                    <TableHead className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-wider">INSTRUMENT / TARGET</TableHead>
-                                    <TableHead className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 w-[120px] uppercase tracking-wider">SIGNAL_STRENGTH</TableHead>
+                                    <TableHead className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-wider">STRATEGIC INSTRUMENT</TableHead>
+                                    <TableHead className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 w-[120px] uppercase tracking-wider">ALGO_BIAS_SENTIMENT</TableHead>
                                     <TableHead
                                         className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 text-right cursor-pointer hover:text-primary transition-colors w-[100px] uppercase tracking-wider"
                                         onClick={() => handleSort('PRICE')}
                                     >
-                                        PROB {sort === 'PRICE' && (sortDir === 'DESC' ? '▼' : '▲')}
+                                        MIRROR {sort === 'PRICE' && (sortDir === 'DESC' ? '▼' : '▲')}
                                     </TableHead>
                                     <TableHead
                                         className="h-10 text-[9px] font-black font-mono text-muted-foreground/60 text-right cursor-pointer hover:text-primary transition-colors hidden md:table-cell w-[120px] uppercase tracking-wider pr-6"
                                         onClick={() => handleSort('VOLUME')}
                                     >
-                                        LIQUIDITY {sort === 'VOLUME' && (sortDir === 'DESC' ? '▼' : '▲')}
+                                        OI_LIQUIDITY {sort === 'VOLUME' && (sortDir === 'DESC' ? '▼' : '▲')}
                                     </TableHead>
                                     <TableHead className="h-10 w-[50px]"></TableHead>
                                 </TableRow>
@@ -187,7 +187,7 @@ export function MarketTable() {
                                                     m.last_price < 0.4 ? "bg-red-500/10 text-red-400 border-red-500/20" :
                                                         "bg-gold/10 text-gold border-gold/20"
                                             )}>
-                                                {m.last_price > 0.6 ? 'STRONG_BUY' : m.last_price < 0.4 ? 'SELL_SIGNAL' : 'HODL_NEUTRAL'}
+                                                {m.last_price > 0.6 ? 'EXTREME_NOISE' : m.last_price < 0.4 ? 'PHYSICAL_DRIVEN' : 'BALANCED_NARRATIVE'}
                                             </div>
                                         </TableCell>
                                         <TableCell className="py-0 text-right font-mono text-xs text-white">
@@ -246,7 +246,7 @@ export function MarketTable() {
                     <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b border-white/10 bg-white/5 z-10 shrink-0 backdrop-blur-md">
                         <div className="flex items-center gap-2">
                             <Terminal className="w-4 h-4 text-primary animate-pulse" />
-                            <CardTitle className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase text-glow-primary">QUANT_ENGINE_V4.0</CardTitle>
+                            <CardTitle className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase text-glow-primary">INTELLIGENCE_MIRROR_V1.0</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-1.5 py-0.5 rounded-sm bg-primary/20 border border-primary/30 text-[9px] font-black font-mono text-primary animate-pulse">
@@ -262,7 +262,7 @@ export function MarketTable() {
                                     <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse-glow" />
                                     <Lock className="w-12 h-12 relative z-10" />
                                 </div>
-                                <span className="font-mono text-[10px] tracking-[0.3em] font-bold">AWAITING_TARGET_ACQUISITION</span>
+                                <span className="font-mono text-[10px] tracking-[0.3em] font-bold">AWAITING_COMMODITY_TARGET</span>
                             </div>
                         )}
 
@@ -272,11 +272,11 @@ export function MarketTable() {
                                     <div className="absolute top-0 right-0 p-2 opacity-20">
                                         <Activity className="w-12 h-12 text-primary" />
                                     </div>
-                                    <span className="text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-widest">ACTIVE_INSTRUMENT</span>
+                                    <span className="text-[9px] font-black font-mono text-muted-foreground/60 uppercase tracking-widest">SELECTED_INSTRUMENT</span>
                                     <p className="text-lg font-bold leading-snug text-white/90 pr-8">{selectedMarket.question}</p>
                                     <div className="flex gap-2 pt-2">
-                                        <div className="px-2 py-1 rounded-sm bg-indigo/10 border border-indigo/20 text-[9px] font-mono text-indigo uppercase font-bold">LIQUIDITY: POOLED</div>
-                                        <div className="px-2 py-1 rounded-sm bg-primary/10 border border-primary/20 text-[9px] font-mono text-primary uppercase font-bold">FEES: 0.1%</div>
+                                        <div className="px-2 py-1 rounded-sm bg-indigo/10 border border-indigo/20 text-[9px] font-mono text-indigo uppercase font-bold">DELIVERY: PHYSICAL</div>
+                                        <div className="px-2 py-1 rounded-sm bg-primary/10 border border-primary/20 text-[9px] font-mono text-primary uppercase font-bold">PREMIUM: +$2.50</div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
@@ -286,7 +286,7 @@ export function MarketTable() {
                                     >
                                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12" />
                                         <Zap className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-                                        INITIATE_ANALYSIS
+                                        MIRROR_INTELLIGENCE
                                     </Button>
                                     <div className="h-40 rounded-lg border border-white/10 bg-black/40 p-1 relative group/chart overflow-hidden">
                                         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/chart:opacity-100 transition-opacity pointer-events-none" />
@@ -300,8 +300,8 @@ export function MarketTable() {
                             <div className="space-y-6 font-mono text-[10px]">
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-primary font-bold px-1">
-                                        <span className="tracking-widest">EXECUTING_NEURAL_SCAN</span>
-                                        <span className="animate-pulse text-neon-blue">RUNNING...</span>
+                                        <span className="tracking-widest">AUDITING_ALGO_NARRATIVES</span>
+                                        <span className="animate-pulse text-neon-blue">SCANNING...</span>
                                     </div>
                                     <div className="h-1.5 w-full bg-white/5 overflow-hidden rounded-full border border-white/5">
                                         <div className="h-full bg-gradient-to-r from-primary via-neon-blue to-primary shadow-[0_0_15px_#10B981] animate-[ticker_1.5s_linear_infinite]" style={{ width: '40%' }}></div>
@@ -321,7 +321,7 @@ export function MarketTable() {
                                         <span className="w-1 h-1 bg-white/20 rounded-full" /> [102.8ms] Cross-referencing 4k+ data points...
                                     </p>
                                     <p className="text-neon-blue animate-pulse opacity-0 animate-[fade-in_0.3s_0.8s_forwards] font-bold flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-neon-blue rounded-full" /> [158.2ms] BAYESIAN_INFERENCE_ENGINE active...
+                                        <span className="w-1 h-1 bg-neon-blue rounded-full" /> [158.2ms] MIRROR_DIVERGENCE_ENGINE active...
                                     </p>
                                 </div>
                             </div>
@@ -334,7 +334,7 @@ export function MarketTable() {
                                         <div className="absolute top-0 right-0 p-1">
                                             <TrendingUp className="w-3 h-3 text-primary/40" />
                                         </div>
-                                        <span className="text-[9px] font-black font-mono text-primary/60 uppercase tracking-tighter">Prob_Adjusted</span>
+                                        <span className="text-[9px] font-black font-mono text-primary/60 uppercase tracking-tighter">Mirror_Confidence</span>
                                         <div className="text-3xl font-black font-mono text-primary text-glow-primary tracking-tighter">
                                             {(prediction.adjusted_forecast * 100).toFixed(0)}%
                                         </div>
@@ -349,7 +349,7 @@ export function MarketTable() {
 
                                 <div className="space-y-3 bg-white/3 border border-white/5 p-3 rounded-lg">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                        <span className="text-[9px] font-black font-mono text-muted-foreground uppercase tracking-[0.2em]">Signal_Critique</span>
+                                        <span className="text-[9px] font-black font-mono text-muted-foreground uppercase tracking-[0.2em]">Intelligence_Audit</span>
                                         <div className="flex gap-1">
                                             <div className="w-1 h-1 rounded-full bg-primary" />
                                             <div className="w-1 h-1 rounded-full bg-primary/40" />
@@ -357,7 +357,7 @@ export function MarketTable() {
                                         </div>
                                     </div>
                                     <p className="text-[11px] font-medium font-mono text-white/70 leading-relaxed italic">
-                                        "{prediction.critique}"
+                                        &quot;{prediction.critique}&quot;
                                     </p>
                                 </div>
 
@@ -378,7 +378,7 @@ export function MarketTable() {
                                 <div className="flex gap-4 pt-2">
                                     <Button className="flex-1 bg-white text-black hover:bg-white/90 font-black text-[11px] tracking-[0.2em] uppercase py-6 h-auto rounded-none shadow-[0_4px_20px_rgba(255,255,255,0.1)] group transition-all">
                                         <ShieldCheck className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                        EXECUTE
+                                        HEDGE
                                     </Button>
                                     <Button
                                         onClick={() => setIsChatOpen(!isChatOpen)}

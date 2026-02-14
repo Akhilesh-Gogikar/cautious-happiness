@@ -1,9 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.engine import ForecasterCriticEngine, ForecastResult
+from app.engine import IntelligenceMirrorEngine, ForecastResult
 from app.models import ForecastResult, ChatRequest, ChatResponse
-from app.engine import ForecasterCriticEngine
 import os
 import logging
 import json
@@ -34,7 +33,7 @@ handler.setFormatter(JsonFormatter())
 logger.handlers = [handler]
 logger.propagate = False
 
-app = FastAPI(title="Polymarket Hedge Fund Dashboard")
+app = FastAPI(title="Alpha Insights: Commodity Intelligence")
 
 # CORS Configuration
 origins = ["*"] # Simplification for dev
@@ -73,13 +72,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         "path": request.url.path
     }
 
-engine = ForecasterCriticEngine()
+engine = IntelligenceMirrorEngine()
 
 # Pydantic models
 from pydantic import BaseModel
 class PredictionRequest(BaseModel):
     question: str
-    model: str = "openforecaster"
+    model: str = "lfm-thinking"
 
 @app.get("/api-spec")
 def get_api_spec():
@@ -88,9 +87,13 @@ def get_api_spec():
     """
     return app.openapi()
 
+from app.health import get_system_health
+
 @app.get("/health")
-def health_check():
-    return {"status": "ok"}
+async def health_check():
+    health_status = await get_system_health()
+    status = "ok" if all(health_status.values()) else "degraded"
+    return {"status": status, "details": health_status}
 
 from celery.result import AsyncResult
 from app.worker import celery_app, run_forecast_task
@@ -177,80 +180,71 @@ from app.cache import cache_response
 @cache_response(ttl_seconds=30)
 async def get_markets():
     """
-    Fetch active markets from Polymarket CLOB.
-    Uses 'py-clob-client' to get real-time data.
+    Fetch active physical commodity instruments.
+    For MVP, this returns a curated list of key physical markets.
     """
-    try:
-        # Load Creds from Env
-        api_key = os.getenv("POLYMARKET_API_KEY", "")
-        secret = os.getenv("POLYMARKET_SECRET", "")
-        passphrase = os.getenv("POLYMARKET_PASSPHRASE", "")
-        
-        # Initialize client
-        # If no keys provided, it falls back to public access (usually fine for getting markets)
-        client = ClobClient(
-            "https://clob.polymarket.com", 
-            key=api_key, 
-            secret=secret, 
-            passphrase=passphrase, 
-            chain_id=137
-        )
+    return [
+        {
+            "id": "brent_crude",
+            "question": "Brent Crude Oil (Spot Physical)",
+            "volume_24h": 1240000,
+            "last_price": 0.82, # Representing a high physical premium
+            "category": "Energy"
+        },
+        {
+            "id": "wti_crude",
+            "question": "WTI Crude Oil (Cushing Delivery)",
+            "volume_24h": 980000,
+            "last_price": 0.55,
+            "category": "Energy"
+        },
+        {
+            "id": "ttf_gas",
+            "question": "Dutch TTF Natural Gas (Physical)",
+            "volume_24h": 450000,
+            "last_price": 0.91,
+            "category": "Energy"
+        },
+        {
+            "id": "lme_copper",
+            "question": "LME Copper Grade A (Warehouse)",
+            "volume_24h": 320000,
+            "last_price": 0.42,
+            "category": "Metals"
+        },
+        {
+            "id": "iron_ore",
+            "question": "Iron Ore 62% Fe (Tianjin Port)",
+            "volume_24h": 150000,
+            "last_price": 0.28,
+            "category": "Metals"
+        },
+        {
+            "id": "soybeans",
+            "question": "Soybeans (US No. 2 Yellow)",
+            "volume_24h": 85000,
+            "last_price": 0.64,
+            "category": "Agri"
+        }
+    ]
 
-        # Fetch active markets (limit to top 20 by volume/activity via simplified sampling)
-        # Note: The raw API might return many, we filter for top volume ones.
-        # Since 'get_markets' returns detailed token info, we parse it.
-        
-        # Using simplified approach for MVP latency:
-        # 1. Get markets (filtering by active is ideal if supported, or client logic)
-        resp = client.get_markets(next_cursor="") 
-        
-        # Transform to our minimal dashboard format
-        # This is a simplification; real app handles pagination and robust filtering
-        markets_data = []
-        for m in resp.get('data', [])[:20]: # Limit to 20 for density
-            if m.get('active') and m.get('tokens'):
-                # Heuristic: Find YES token price
-                yes_token = next((t for t in m['tokens'] if t['outcome'] == 'Yes'), None)
-                price = yes_token.get('price', 0.5) if yes_token else 0.0
-                
-                markets_data.append({
-                    "id": m.get('condition_id'),
-                    "question": m.get('question'),
-                    "volume_24h": float(m.get('volume_24h', 0) or 0), 
-                    "last_price": float(price),
-                    "category": m.get('tags', ['General'])[0] if m.get('tags') else 'General'
-                })
-        
-        # Sort by Volume desc
-        markets_data.sort(key=lambda x: x['volume_24h'], reverse=True)
-        return markets_data
+# ... existing code ...
+from app.intelligence import router as intelligence_router
+from app.strategy import router as strategy_router
 
-    except Exception as e:
-        logger.error(f"CLOB Error: {e}")
-        # Fallback to Mock if API fails (e.g., rate limit)
-        return [
-            {
-                "id": "err_fallback",
-                "question": "Error fetching Live Data - Showing Cached/Mock",
-                "volume_24h": 0,
-                "last_price": 0.0,
-                "category": "System"
-            }
-        ]
+app.include_router(intelligence_router)
+app.include_router(strategy_router)
 
-# Placeholder for CLOB Client Wrapper
+
+from app.services.execution import ExecutionService
+
+execution_service = ExecutionService()
+
 @app.post("/trade/execute")
 async def execute_trade():
     """
     Constructs a transaction payload for the frontend to sign.
+    Delegates to ExecutionService.
     """
-    # Return a mocked transaction object
-    return {
-        "status": "ready_to_sign",
-        "tx_payload": {
-            "to": "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", # Polymarket CTF Exchange
-            "data": "0x...", # Hex data
-            "value": "0",
-            "chainId": 137 # Polygon
-        }
-    }
+    return await execution_service.construct_trade_payload()
+

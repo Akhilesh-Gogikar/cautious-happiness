@@ -72,7 +72,7 @@ export function StrategyView() {
                         <div className="flex items-center justify-between border-t border-white/5 pt-4">
                             <div className="space-y-0.5">
                                 <label className="text-[10px] font-mono text-white font-bold uppercase">Reasoning_Critic</label>
-                                <p className="text-[9px] text-muted-foreground">Require "Step-by-Step" verify before trade</p>
+                                <p className="text-[9px] text-muted-foreground">Require &quot;Step-by-Step&quot; verify before trade</p>
                             </div>
                             <Switch />
                         </div>

@@ -49,16 +49,16 @@ export function StatCards() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             <StatCard
-                label="Active Exposure"
-                value="$1.2M"
-                subtext="Across 12 positions"
+                label="Physical Premium"
+                value="+$4.20"
+                subtext="Brent vs Paper"
                 icon={TrendingUp}
                 trend="up"
             />
             <StatCard
-                label="Prediction Accuracy"
-                value="94.2%"
-                subtext="Last 30 days"
+                label="Mirror Accuracy"
+                value="89.1%"
+                subtext="Sentiment Tracking"
                 icon={Target}
                 colorClass="bg-indigo"
                 trend="up"
@@ -71,9 +71,9 @@ export function StatCards() {
                 colorClass="bg-neon-blue"
             />
             <StatCard
-                label="Alpha Signals"
-                value="42"
-                subtext="24h generation"
+                label="Algo Noise Level"
+                value="HIGH"
+                subtext="Systemic Volatility"
                 icon={Zap}
                 colorClass="bg-gold"
                 trend="up"

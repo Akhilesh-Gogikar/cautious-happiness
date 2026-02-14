@@ -1,9 +1,10 @@
 from celery import Celery
 import os
 import asyncio
-from app.engine import ForecasterCriticEngine
+from app.engine import IntelligenceMirrorEngine
 
 # Initialize Celery
+# ... (rest of imports/init)
 # Initialize Celery
 # Note: In production we would use a more robust broker/backend setup
 if os.getenv("CELERY_ALWAYS_EAGER"):
@@ -15,10 +16,10 @@ else:
 
 # Instantiate engine once (global) - careful with concurrency if not thread safe
 # For simple stateless logic it's fine
-engine = ForecasterCriticEngine()
+engine = IntelligenceMirrorEngine()
 
 @celery_app.task(name="run_forecast", bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-def run_forecast_task(self, question: str, model: str = "qwen2.5"):
+def run_forecast_task(self, question: str, model: str = "lfm-thinking"):
     """
     Wrapper to run async engine logic in a synchronous Celery worker.
     """

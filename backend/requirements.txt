@@ -9,3 +9,6 @@ google-genai
 httpx
 pydantic-settings
 python-dotenv
+feedparser
+torch
+transformers

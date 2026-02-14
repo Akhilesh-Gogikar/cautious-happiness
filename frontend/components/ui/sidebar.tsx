@@ -66,6 +66,7 @@ export function Sidebar({ activeView, onNavigate }: SidebarProps) {
                     <p className="px-2 pb-2 text-[9px] font-black font-mono text-muted-foreground/40 uppercase tracking-[0.2em]">Analysis Tools</p>
                     <NavItem icon={BarChart3} label="Correlations" active={activeView === 'correlations'} onClick={() => onNavigate('correlations')} />
                     <NavItem icon={TerminalIcon} label="Quant Engine" active={activeView === 'quant'} onClick={() => onNavigate('quant')} />
+                    <NavItem icon={Zap} label="Intelligence Mirror" active={activeView === 'intelligence'} onClick={() => onNavigate('intelligence')} badge="NEW" />
                     <NavItem icon={MessageSquare} label="Analyst Chat" active={activeView === 'chat'} onClick={() => onNavigate('chat')} badge="AI" />
                     <NavItem icon={Zap} label="Alpha Scanner" active={activeView === 'alpha'} onClick={() => onNavigate('alpha')} />
                 </div>

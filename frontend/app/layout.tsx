@@ -1,6 +1,7 @@
 "use client";
 
 import './globals.css';
+import './prism-theme.css';
 import '@rainbow-me/rainbowkit/styles.css';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { WagmiConfig } from 'wagmi';

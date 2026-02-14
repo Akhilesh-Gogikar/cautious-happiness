@@ -11,8 +11,10 @@ import { PortfolioView } from '@/components/dashboard/portfolio-view';
 import { AlphaScanner } from '@/components/dashboard/alpha-scanner';
 import { StrategyView } from '@/components/dashboard/strategy-view';
 import { CorrelationsView } from '@/components/dashboard/correlations-view';
+import { StrategyBuilder } from '@/components/strategy/StrategyBuilder';
 import { SecurityView } from '@/components/dashboard/security-view';
 import { ChatView } from '@/components/dashboard/chat-view';
+import { IntelligenceView } from '@/components/dashboard/intelligence-view';
 import { Activity, Globe, ShieldCheck, Cpu, Zap } from 'lucide-react';
 
 // Basic Placeholder Component for WIP Views
@@ -60,7 +62,7 @@ export default function Home() {
                             <div className="flex items-center gap-3">
                                 <h1 className="text-3xl font-black tracking-tighter text-white flex items-center gap-2 drop-shadow-lg">
                                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-white to-primary animate-pulse-glow">ALPHA</span>
-                                    <span className="text-white">TERMINAL</span>
+                                    <span className="text-white">INSIGHTS</span>
                                 </h1>
                                 <div className="px-2 py-0.5 rounded-sm text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                                     v4.2.0_STABLE
@@ -119,9 +121,10 @@ export default function Home() {
                         {currentView === 'portfolio' && <PortfolioView />}
                         {currentView === 'strategies' && <StrategyView />}
                         {currentView === 'correlations' && <CorrelationsView />}
-                        {currentView === 'quant' && <MarketTable />}
+                        {currentView === 'quant' && <StrategyBuilder />}
                         {currentView === 'chat' && <ChatView />}
                         {currentView === 'alpha' && <AlphaScanner />}
+                        {currentView === 'intelligence' && <IntelligenceView />}
                         {currentView === 'security' && <SecurityView />}
                         {currentView === 'config' && <ViewPlaceholder title="GLOBAL_CONFIG" />}
                     </div>

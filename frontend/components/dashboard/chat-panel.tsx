@@ -41,7 +41,7 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
                 }
             ]);
         }
-    }, [isOpen, context]);
+    }, [isOpen, context, messages.length]);
 
     useEffect(() => {
         if (scrollRef.current) {

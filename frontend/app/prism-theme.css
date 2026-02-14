@@ -1,0 +1,107 @@
+/* Data Noir Prism Theme */
+
+code[class*="language-"],
+pre[class*="language-"] {
+    color: #a5b3ce;
+    background: none;
+    font-family: var(--font-jetbrains), monospace;
+    font-size: 13px;
+    text-align: left;
+    white-space: pre;
+    word-spacing: normal;
+    word-break: normal;
+    word-wrap: normal;
+    line-height: 1.5;
+    tab-size: 4;
+    hyphens: none;
+}
+
+/* Comment */
+.token.comment,
+.token.block-comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+    color: #5c6370;
+    font-style: italic;
+}
+
+/* Punctuation */
+.token.punctuation {
+    color: #abb2bf;
+}
+
+/* Property, Tag, Constant, Symbol, Deleted */
+.token.tag,
+.token.attr-name,
+.token.namespace,
+.token.deleted {
+    color: #e06c75;
+}
+
+/* Function, Class Name */
+.token.function-name,
+.token.function,
+.token.class-name,
+.token.constant,
+.token.symbol {
+    color: #61afef;
+}
+
+/* Selector, Attr Name, String, Char, Builtin, Inserted */
+.token.selector,
+.token.important,
+.token.atrule,
+.token.keyword,
+.token.builtin {
+    color: #c678dd;
+}
+
+/* String */
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.variable {
+    color: #98c379;
+}
+
+/* Operator, Entity, Url */
+.token.operator,
+.token.entity,
+.token.url {
+    color: #56b6c2;
+}
+
+/* Important, Bold */
+.token.important,
+.token.bold {
+    font-weight: bold;
+}
+
+/* Italic */
+.token.italic {
+    font-style: italic;
+}
+
+/* Entity */
+.token.entity {
+    cursor: help;
+}
+
+/* Line Numbers */
+.textarea-editor {
+    font-family: var(--font-jetbrains), monospace !important;
+    counter-reset: line;
+}
+
+.textarea-editor .container__textarea {
+    outline: none !important;
+}
+
+/* Custom scrollbar matching Data Noir */
+.textarea-editor textarea,
+.textarea-editor pre {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}

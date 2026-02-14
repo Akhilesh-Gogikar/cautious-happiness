@@ -139,17 +139,33 @@ services:
     networks:
       - polymarket-net
 
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: polymarket-llama-cpp
+    command: -m /models/LFM2.5-1.2B-Thinking-Q4_K_M.gguf --host 0.0.0.0 --port 8080 -c 8192
+    volumes:
+      - ollama_downloads:/models:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - polymarket-net
+    depends_on:
+      setup_model:
+        condition: service_completed_successfully
+
   nginx:
-    image: jc21/nginx-proxy-manager:latest
+    image: nginx:alpine
     container_name: polymarket-nginx
     restart: unless-stopped
     ports:
       - "80:80"
-      - "81:81"
       - "443:443"
     volumes:
-      - ./nginx/data:/data
-      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
     networks:
       - polymarket-net
 
