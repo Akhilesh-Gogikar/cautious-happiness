@@ -1,7 +1,7 @@
 import logging
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-from app.intelligence.models import SentimentScore
+from app.domain.intelligence.models import SentimentScore
 
 logger = logging.getLogger("polymarket_dashboard")
 

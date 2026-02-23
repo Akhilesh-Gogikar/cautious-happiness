@@ -1,48 +1,63 @@
-import React from 'react';
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface SentimentGaugeProps {
-    score: number; // -1 (Execute Negative) to 1 (Extreme Positive)
+    score: number; // -1.0 to 1.0
+    conviction: number; // 0.0 to 1.0
 }
 
-export function SentimentGauge({ score }: SentimentGaugeProps) {
-    // Normalize -1 to 1 range to 0 to 100 for gauge position
+export function SentimentGauge({ score, conviction }: SentimentGaugeProps) {
+    // Navigate from Red (-1) to Green (1). 0 is Grey.
     const percentage = ((score + 1) / 2) * 100;
 
-    let label = "Neutral";
-    let color = "text-gray-400";
+    let colorClass = "bg-gray-500";
+    let textClass = "text-gray-400";
+    let label = "NEUTRAL";
 
-    if (score > 0.3) {
-        label = "Greed / Bullish";
-        color = "text-green-500";
-    } else if (score < -0.3) {
-        label = "Fear / Bearish";
-        color = "text-red-500";
+    if (score > 0.2) {
+        colorClass = "bg-emerald-500";
+        textClass = "text-emerald-500";
+        label = "BULLISH";
+    } else if (score < -0.2) {
+        colorClass = "bg-red-500";
+        textClass = "text-red-500";
+        label = "BEARISH";
     }
 
     return (
-        <div className="flex flex-col items-center justify-center p-6 bg-gray-900 rounded-xl border border-gray-800">
-            <h3 className="text-lg font-medium text-gray-300 mb-4">Market Sentiment</h3>
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">CROWD SENTIMENT</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col items-center justify-center space-y-4">
+                    <div className="relative w-full h-4 bg-secondary rounded-full overflow-hidden">
+                        <div
+                            className={cn("absolute top-0 bottom-0 transition-all duration-1000 ease-out", colorClass)}
+                            style={{ left: `${percentage}%`, width: '4px', transform: 'translateX(-2px)' }}
+                        />
+                        {/* Center Marker */}
+                        <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/20" />
+                    </div>
 
-            <div className="relative w-64 h-32 overflow-hidden">
-                {/* Gauge Background */}
-                <div className="absolute top-0 left-0 w-full h-full bg-gray-700 rounded-t-full opacity-30"></div>
+                    <div className="flex justify-between w-full text-xs font-mono text-muted-foreground">
+                        <span>BEARISH</span>
+                        <span>NEUTRAL</span>
+                        <span>BULLISH</span>
+                    </div>
 
-                {/* Needle */}
-                <div
-                    className="absolute bottom-0 left-1/2 w-1 h-28 bg-white origin-bottom transition-transform duration-1000 ease-out"
-                    style={{ transform: `translateX(-50%) rotate(${(percentage * 1.8) - 90}deg)` }}
-                ></div>
-
-                {/* Center Pivot */}
-                <div className="absolute bottom-0 left-1/2 w-4 h-4 bg-white rounded-full transform -translate-x-1/2 translate-y-1/2"></div>
-            </div>
-
-            <div className={`mt-4 text-2xl font-bold ${color}`}>
-                {label}
-            </div>
-            <div className="text-sm text-gray-500">
-                Score: {score.toFixed(2)}
-            </div>
-        </div>
+                    <div className="text-center">
+                        <div className={cn("text-3xl font-bold font-mono tracking-tighter", textClass)}>
+                            {label}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                            CONVICTION: <span className="text-foreground">{(conviction * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }

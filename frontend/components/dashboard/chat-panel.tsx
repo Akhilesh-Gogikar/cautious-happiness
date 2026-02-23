@@ -59,9 +59,16 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
 
         try {
             const res = await chatWithModel({
-                question: context.question,
-                context: `Reasoning: ${context.reasoning}\nCritique: ${context.critique}\nForecast: ${context.probability}`,
-                user_message: userMsg
+                question: userMsg,
+                context: {
+                    route_path: "/chat",
+                    client_state: {
+                        original_question: context.question,
+                        reasoning: context.reasoning,
+                        critique: context.critique,
+                        probability: context.probability
+                    }
+                }
             });
 
             setMessages(prev => [...prev, { role: 'assistant', content: res.response }]);

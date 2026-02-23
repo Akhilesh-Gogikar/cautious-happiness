@@ -6,7 +6,7 @@ from app.cache import r as redis_client
 async def check_ollama(host: str) -> bool:
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(host)
+            resp = await client.get(f"{host}/health")
             return resp.status_code == 200
     except:
         return False
@@ -18,7 +18,7 @@ def check_redis() -> bool:
         return False
 
 async def get_system_health():
-    ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+    ollama_host = os.getenv("OLLAMA_HOST", "http://text-gen-cpp:8080")
     
     return {
         "ollama": await check_ollama(ollama_host),

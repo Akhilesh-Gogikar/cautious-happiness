@@ -13,16 +13,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function SettingsModal() {
-    const [model, setModel] = useState("openforecaster");
+    const [model, setModel] = useState("lfm-thinking");
     const [geminiKey, setGeminiKey] = useState("");
+    const { user, toggleRole, logout } = useAuth();
+    const router = useRouter();
 
     const handleSave = () => {
         localStorage.setItem("POLY_MODEL", model);
         if (geminiKey) localStorage.setItem("POLY_GEMINI_KEY", geminiKey);
     };
+
+    const handleLogout = () => {
+        logout();
+        router.push("/login"); // Need to import useRouter
+    }
 
     return (
         <Dialog>
@@ -38,10 +47,27 @@ export function SettingsModal() {
                         <DialogTitle className="text-sm font-black tracking-[0.2em] text-primary uppercase">SYSTEM_CONFIG</DialogTitle>
                     </div>
                     <DialogDescription className="text-muted-foreground text-xs">
-                        Configure Neural Engine parameters.
+                        Configure Neural Engine parameters and Access Control.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
+                    {/* Role Switcher for Admin Only */}
+                    {user?.email.toLowerCase() === 'aki@onenew.ai' && (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-3">
+                            <Label className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center justify-between">
+                                <span>Demo Controls</span>
+                                <span className="text-white/50 lowercase tracking-normal bg-black/50 px-2 py-0.5 rounded border border-white/10">Active: {user.role}</span>
+                            </Label>
+                            <Button
+                                variant="outline"
+                                onClick={toggleRole}
+                                className="w-full text-xs font-mono border-primary/30 hover:bg-primary hover:text-black transition-colors"
+                            >
+                                Switch to {user.role === 'Admin' ? 'User' : 'Admin'} Role
+                            </Button>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <Label htmlFor="model" className="text-xs font-bold text-white/50 uppercase tracking-wider">
                             Inference Model
@@ -67,10 +93,15 @@ export function SettingsModal() {
                         />
                     </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-col gap-2">
                     <Button onClick={handleSave} className="w-full bg-primary text-black hover:bg-emerald-400 font-bold tracking-widest uppercase">
                         SAVE CONFIGURATION
                     </Button>
+                    {user && (
+                        <Button onClick={handleLogout} variant="outline" className="w-full text-red-500 border-red-500/30 hover:bg-red-500/10 font-bold tracking-widest uppercase mt-2 sm:mt-0">
+                            LOGOUT OPERATOR
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

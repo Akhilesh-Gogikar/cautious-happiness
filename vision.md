@@ -23,3 +23,7 @@ The **Intelligence Mirror** module of the Alpha Insights Platform addresses this
 ### Roadmap
 - [ ] **Prototype Demo**: Showcase existing Alpha Insights capabilities (Prediction generation + Criticism).
 - [ ] **Data Integration**: Define specific commodity data sources (e.g., shipping manifests, satellite imagery reports) for the "Physicals" context.
+
+## Product Management
+To ensure alignment with this vision, all development follows the [Product Framework](docs/PRODUCT_FRAMEWORK.md).
+- [Backlog](BACKLOG.md)

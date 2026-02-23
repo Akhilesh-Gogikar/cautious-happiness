@@ -1,139 +1,94 @@
 "use client";
 
-import { useState } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { MarketTable } from '@/components/dashboard/market-table';
-import { StatCards } from '@/components/dashboard/stat-cards';
-import { Ticker } from '@/components/ui/ticker';
-import { Sidebar } from '@/components/ui/sidebar';
-import { SettingsModal } from '@/components/settings/settings-modal';
-import { PortfolioView } from '@/components/dashboard/portfolio-view';
-import { AlphaScanner } from '@/components/dashboard/alpha-scanner';
-import { StrategyView } from '@/components/dashboard/strategy-view';
-import { CorrelationsView } from '@/components/dashboard/correlations-view';
-import { StrategyBuilder } from '@/components/strategy/StrategyBuilder';
-import { SecurityView } from '@/components/dashboard/security-view';
-import { ChatView } from '@/components/dashboard/chat-view';
-import { IntelligenceView } from '@/components/dashboard/intelligence-view';
-import { Activity, Globe, ShieldCheck, Cpu, Zap } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { ArrowRight, ShieldCheck, Zap, Activity, Globe } from 'lucide-react';
+import Link from 'next/link';
 
-// Basic Placeholder Component for WIP Views
-function ViewPlaceholder({ title }: { title: string }) {
-    return (
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4 animate-fade-in text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                <ShieldCheck className="w-8 h-8 text-muted-foreground/40" />
-            </div>
-            <div>
-                <h3 className="text-lg font-black tracking-widest text-white uppercase">{title}</h3>
-                <p className="text-xs font-mono text-muted-foreground mt-2">MODULE_UNDER_CONSTRUCTION // ACCESS_DENIED</p>
-            </div>
-        </div>
-    );
-}
+export default function LandingPage() {
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
 
-export default function Home() {
-    const [currentView, setCurrentView] = useState('markets');
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.push('/dashboard');
+        }
+    }, [user, isLoading, router]);
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-t-2 border-primary animate-spin" />
+        </div>;
+    }
 
     return (
-        <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30 selection:text-white">
-            {/* Sidebar with Navigation Logic */}
-            <Sidebar activeView={currentView} onNavigate={setCurrentView} />
+        <div className="min-h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30 selection:text-white relative flex flex-col items-center justify-center">
+            {/* Visual Background Elements */}
+            <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute top-[10%] left-[10%] w-[800px] h-[800px] bg-primary/10 blur-[120px] rounded-full opacity-40 mix-blend-screen animate-pulse-glow" />
+                <div className="absolute bottom-[20%] right-[10%] w-[600px] h-[600px] bg-indigo/10 blur-[120px] rounded-full opacity-40 mix-blend-screen" />
+                <div className="absolute top-[40%] left-[40%] w-[400px] h-[400px] bg-cyber-blue/5 blur-[100px] rounded-full opacity-30" />
+            </div>
 
-            <main className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
-                {/* Visual Background Elements - ENHANCED */}
-                <div className="absolute inset-0 pointer-events-none z-0">
-                    <div className="absolute -top-[20%] -right-[10%] w-[800px] h-[800px] bg-primary/20 blur-[120px] rounded-full opacity-40 mix-blend-screen animate-pulse-glow" />
-                    <div className="absolute -bottom-[20%] -left-[10%] w-[600px] h-[600px] bg-indigo/20 blur-[120px] rounded-full opacity-40 mix-blend-screen" />
-                    <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] bg-cyber-blue/10 blur-[100px] rounded-full opacity-30" />
-                </div>
+            {/* Grid Overlay */}
+            <div className="absolute inset-0 z-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-5" />
 
-                {/* Ticker Bar - Top of main content */}
-                <div className="w-full border-b border-white/5 bg-black/40 backdrop-blur-md relative z-30">
-                    <Ticker />
-                </div>
+            <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center text-center space-y-12 animate-fade-in">
 
-                {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-6 py-6 space-y-8">
-
-                    {/* Header Section - Staggered Entry */}
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-fade-in [animation-delay:100ms] opacity-0 fill-mode-forwards">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl font-black tracking-tighter text-white flex items-center gap-2 drop-shadow-lg">
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-white to-primary animate-pulse-glow">ALPHA</span>
-                                    <span className="text-white">INSIGHTS</span>
-                                </h1>
-                                <div className="px-2 py-0.5 rounded-sm text-[10px] font-mono bg-primary/10 border border-primary/20 text-primary uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                                    v4.2.0_STABLE
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Activity className="w-3 h-3 text-primary animate-pulse" />
-                                    SYSTEM_OPTIMAL
-                                </p>
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Cpu className="w-3 h-3 text-indigo" />
-                                    NEURAL_ENGINE_ACTIVE
-                                </p>
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Zap className="w-3 h-3 text-gold" />
-                                    LOW_LATENCY
-                                </p>
-                            </div>
+                {/* Header Section */}
+                <div className="flex flex-col items-center space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-primary/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                            <Zap className="w-6 h-6 text-primary relative z-10" />
                         </div>
-
-                        <div className="flex items-center gap-6">
-                            <div className="hidden lg:flex flex-col items-end gap-1 px-4 border-r border-white/10">
-                                <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground group">
-                                    <Globe className="w-3 h-3 group-hover:text-cyber-blue transition-colors" />
-                                    <span>NETWORK: <span className="text-white group-hover:text-cyber-blue transition-colors">GLOBAL_MESH</span></span>
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground group">
-                                    <ShieldCheck className="w-3 h-3 group-hover:text-primary transition-colors" />
-                                    <span>SECURITY: <span className="text-primary group-hover:text-emerald-400 transition-colors">MAXIMUM</span></span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                <ConnectButton
-                                    accountStatus={{
-                                        smallScreen: 'avatar',
-                                        largeScreen: 'full',
-                                    }}
-                                    showBalance={false}
-                                    chainStatus="icon"
-                                />
-                                <SettingsModal />
-                            </div>
+                        <div className="flex flex-col text-left">
+                            <h2 className="text-xl font-black tracking-tighter text-white leading-none">
+                                <span className="text-primary text-glow-primary">ALPHA</span>
+                                <span className="ml-1">INSIGHTS</span>
+                            </h2>
+                            <p className="text-[10px] text-muted-foreground/60 font-mono mt-1 tracking-[0.2em] font-bold uppercase">Terminal_v4.2</p>
                         </div>
-                    </header>
-
-                    {/* Stats Grid - Staggered Entry */}
-                    <div className="animate-fade-in [animation-delay:300ms] opacity-0 fill-mode-forwards">
-                        <StatCards />
                     </div>
 
-                    {/* MAIN CONTENT SWITCH */}
-                    <div className="grid gap-6 animate-fade-in [animation-delay:500ms] opacity-0 fill-mode-forwards pb-10">
-                        {currentView === 'markets' && <MarketTable />}
-                        {currentView === 'portfolio' && <PortfolioView />}
-                        {currentView === 'strategies' && <StrategyView />}
-                        {currentView === 'correlations' && <CorrelationsView />}
-                        {currentView === 'quant' && <StrategyBuilder />}
-                        {currentView === 'chat' && <ChatView />}
-                        {currentView === 'alpha' && <AlphaScanner />}
-                        {currentView === 'intelligence' && <IntelligenceView />}
-                        {currentView === 'security' && <SecurityView />}
-                        {currentView === 'config' && <ViewPlaceholder title="GLOBAL_CONFIG" />}
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
+                        AI-Native <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-primary to-teal-500 animate-pulse-glow">Superintelligence</span> <br /> for the Modern Quant.
+                    </h1>
+
+                    <p className="text-lg md:text-xl text-muted-foreground max-w-2xl font-mono tracking-tight leading-relaxed">
+                        Deploy specialized micro-agents, analyze real-time market sentiment, and synthesize master forecasts to outmaneuver the competition.
+                    </p>
+                </div>
+
+                {/* Call To Action */}
+                <div className="flex flex-col sm:flex-row gap-6 items-center w-full justify-center max-w-md">
+                    <Link href="/login" className="w-full relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-primary/50 to-emerald-400/50 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+                        <button className="relative w-full bg-black border border-primary/50 hover:border-primary text-white font-bold py-4 px-8 rounded-lg flex items-center justify-between transition-all group-hover:bg-primary/5">
+                            <span className="font-mono uppercase tracking-widest text-sm text-primary">Initialize Access</span>
+                            <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </Link>
+                </div>
+
+                {/* Status Bar */}
+                <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em] mt-12 border-t border-white/10 pt-8 w-full">
+                    <div className="flex items-center gap-2 group">
+                        <Activity className="w-4 h-4 text-emerald-500/50 group-hover:text-emerald-500 transition-colors" />
+                        <span>System: <span className="text-emerald-500">Operational</span></span>
+                    </div>
+                    <div className="flex items-center gap-2 group">
+                        <ShieldCheck className="w-4 h-4 text-blue-500/50 group-hover:text-blue-500 transition-colors" />
+                        <span>Security: <span className="text-blue-500">Quantum_Encrypted</span></span>
+                    </div>
+                    <div className="flex items-center gap-2 group">
+                        <Globe className="w-4 h-4 text-purple-500/50 group-hover:text-purple-500 transition-colors" />
+                        <span>Network: <span className="text-purple-500">Global_Mesh</span></span>
                     </div>
                 </div>
 
-                {/* Overlay Scanline Effect - Subtle Retro Feel */}
-                <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.02] bg-[size:100%_3px] bg-repeat-y bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)]" />
-                <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.03] animate-scanline bg-gradient-to-b from-transparent via-white to-transparent h-24 blur-sm" />
-            </main>
+            </div>
         </div>
     );
 }

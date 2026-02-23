@@ -2,8 +2,8 @@ import feedparser
 import logging
 from typing import List
 from datetime import datetime
-from app.intelligence.models import NewsItem
-from app.intelligence.sentiment import sentiment_analyzer
+from app.domain.intelligence.models import NewsItem
+from app.domain.intelligence.sentiment import sentiment_analyzer
 
 logger = logging.getLogger("polymarket_dashboard")
 

@@ -69,7 +69,7 @@ export function SecurityView() {
                                 { time: "16:05:05", level: "SUCCESS", src: "SYSTEM", msg: "ScheduledDBBackup completed. Size: 4.2GB." },
                                 { time: "15:58:30", level: "INFO", src: "AUTH_SVC", msg: "New API key generated for service: ALPHA_SCANNER." },
                                 { time: "15:45:12", level: "WARN", src: "NET_MESH", msg: "Packet loss 0.01% on node us-east-4." },
-                                { time: "15:30:00", level: "INFO", src: "OLLAMA", msg: "Model 'openforecaster' loaded into VRAM." },
+                                { time: "15:30:00", level: "INFO", src: "LLAMA.CPP", msg: "Model 'lfm-thinking' loaded into VRAM." },
                             ].map((log, i) => (
                                 <div key={i} className="flex gap-4 hover:bg-white/5 p-1 rounded transition-colors group">
                                     <span className="text-muted-foreground/50 w-16 shrink-0">{log.time}</span>

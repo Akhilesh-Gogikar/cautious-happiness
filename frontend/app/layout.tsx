@@ -8,6 +8,7 @@ import { WagmiConfig } from 'wagmi';
 import { wagmiConfig, chains } from '@/lib/wagmi';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from "@/components/ui/sonner";
+import { SidebarChat } from '@/components/layout/sidebar-chat';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -20,6 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
     variable: '--font-jetbrains',
     display: 'swap',
 });
+
+import { AuthProvider } from '@/lib/auth';
 
 export default function RootLayout({
     children,
@@ -40,10 +43,13 @@ export default function RootLayout({
                             overlayBlur: 'small',
                         })}
                     >
-                        <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-                            {children}
-                        </div>
-                        <Toaster />
+                        <AuthProvider>
+                            <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+                                {children}
+                                <SidebarChat />
+                            </div>
+                            <Toaster />
+                        </AuthProvider>
                     </RainbowKitProvider>
                 </WagmiConfig>
             </body>

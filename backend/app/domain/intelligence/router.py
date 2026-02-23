@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.intelligence.models import NewsItem
-from app.intelligence.feed_manager import feed_manager
+from .models import NewsItem
+from .feed_manager import feed_manager
 
 router = APIRouter(
     prefix="/intelligence",
@@ -21,7 +21,7 @@ async def get_status():
     """
     Check status of the intelligence module (e.g., model loaded).
     """
-    from app.intelligence.sentiment import sentiment_analyzer
+    from .sentiment import sentiment_analyzer
     return {
         "model_loaded": sentiment_analyzer.pipeline is not None,
         "model_name": sentiment_analyzer.model_name

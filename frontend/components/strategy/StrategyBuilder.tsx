@@ -21,7 +21,7 @@ export function StrategyBuilder() {
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
 
-        const newMessages = [...messages, { role: 'user', content: prompt }];
+        const newMessages: Message[] = [...messages, { role: 'user' as const, content: prompt }];
         setMessages(newMessages);
         setPrompt('');
         setLoading(true);
@@ -58,8 +58,8 @@ export function StrategyBuilder() {
                     {messages.map((m, i) => (
                         <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] rounded-lg p-3 text-sm ${m.role === 'user'
-                                    ? 'bg-primary/20 text-white border border-primary/20'
-                                    : 'bg-white/5 text-muted-foreground border border-white/5'
+                                ? 'bg-primary/20 text-white border border-primary/20'
+                                : 'bg-white/5 text-muted-foreground border border-white/5'
                                 }`}>
                                 {m.content}
                             </div>

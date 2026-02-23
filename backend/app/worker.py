@@ -16,42 +16,55 @@ else:
 
 # Instantiate engine once (global) - careful with concurrency if not thread safe
 # For simple stateless logic it's fine
-engine = IntelligenceMirrorEngine()
+# REMOVED GLOBAL ENGINE to avoid race conditions and resource leaks in workers
+# engine = IntelligenceMirrorEngine()
+
+def publish_event(task_id, event, message):
+    from app.cache import r as redis_client
+    import json
+    channel = f"task_events:{task_id}"
+    redis_client.publish(channel, json.dumps({"event": event, "message": message, "timestamp": os.getenv("CURRENT_TIME", "")}))
 
 @celery_app.task(name="run_forecast", bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def run_forecast_task(self, question: str, model: str = "lfm-thinking"):
     """
     Wrapper to run async engine logic in a synchronous Celery worker.
     """
-    # Create new event loop for this thread if needed
-    # Check if loop is running (Eager mode called from async context)
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Run in a separate thread to avoid "This event loop is already running"
-            from concurrent.futures import ThreadPoolExecutor
-            def run_in_new_loop():
-                 new_loop = asyncio.new_event_loop()
-                 asyncio.set_event_loop(new_loop)
-                 res = new_loop.run_until_complete(engine.run_analysis(question, model))
-                 new_loop.close()
-                 return res
+    task_id = self.request.id
+    
+    async def _run_logic():
+        # Instantiate engine per task for isolation
+        # This ensures fresh httpx client and event loop compatibility
+        local_engine = IntelligenceMirrorEngine()
+        
+        async def status_cb(msg):
+            publish_event(task_id, "status", msg)
             
-            with ThreadPoolExecutor() as pool:
-                result = pool.submit(run_in_new_loop).result()
+        try:
+            result = await local_engine.run_analysis(question, model, status_callback=status_cb)
+            publish_event(task_id, "complete", "Analysis finished.")
             return result.dict()
-    except RuntimeError:
-        pass # No loop, create new one below
+        except Exception as e:
+            publish_event(task_id, "failed", str(e))
+            return {"error": str(e)}
+        finally:
+            await local_engine.close()
 
     try:
+        # Check if an event loop is already running (e.g. if worker is async or tests)
         loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is running, we cannot use asyncio.run() directly in this thread.
+            # We must run it in a separate thread.
+            from concurrent.futures import ThreadPoolExecutor
+            def run_in_thread():
+                return asyncio.run(_run_logic())
+                
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(run_in_thread).result()
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-    try:
-        # Run the async analysis
-        result = loop.run_until_complete(engine.run_analysis(question, model))
-        return result.dict()
-    except Exception as e:
-        return {"error": str(e)}
+        # No loop running in this thread
+        pass
+
+    # If no loop is running, use asyncio.run
+    return asyncio.run(_run_logic())

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { fetchMarkets, predictMarket, getTaskStatus } from '@/lib/api';
+import { fetchMarkets, predictMarket, getTaskStatus, API_URL } from '@/lib/api';
 import { toast } from "sonner";
 import { ChatPanel } from './chat-panel';
 import { DepthChart } from '@/components/dashboard/depth-chart';
@@ -28,6 +28,7 @@ export function MarketTable() {
     const [filter, setFilter] = useState('ALL');
     const [sort, setSort] = useState<'VOLUME' | 'PRICE'>('VOLUME');
     const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('DESC');
+    const [statusMessage, setStatusMessage] = useState('Initializing...');
 
     useEffect(() => {
         fetchMarkets().then(data => {
@@ -63,35 +64,42 @@ export function MarketTable() {
 
         try {
             const { task_id } = await predictMarket(market.question);
-            toast.info("Mirroring Initialized", { description: "Analyzing AI Narratives vs Physical Reality..." });
+            toast.info("Mirroring Initialized", { description: "Establishing Neural Handshake..." });
+            setStatusMessage("Establishing peer handshake...");
 
-            // Poll for result
-            const interval = setInterval(async () => {
-                const status = await getTaskStatus(task_id);
-                if (status.status === 'completed') {
-                    clearInterval(interval);
+            const wsUrl = API_URL.replace('http', 'ws') + `/ws/lifecycle/${task_id}`;
+            const ws = new WebSocket(wsUrl);
 
-                    if (status.result.error === 'model_missing') {
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.event === 'status') {
+                    setStatusMessage(data.message);
+                } else if (data.event === 'complete') {
+                    ws.close();
+                    // Fetch final result
+                    getTaskStatus(task_id).then(status => {
+                        if (status.result.error === 'model_missing') {
+                            setPredicting(false);
+                            toast.error("AI Model Not Found", {
+                                description: "Please run ./setup_docker_model.sh",
+                                duration: 10000,
+                            });
+                            return;
+                        }
+                        setPrediction(status.result);
                         setPredicting(false);
-                        toast.error("AI Model Not Found", {
-                            description: "Please run ./setup_docker_model.sh in terminal",
-                            duration: 10000,
-                        });
-                        return;
-                    }
-                    if (status.result.error) {
-                        setPredicting(false);
-                        toast.error("Prediction Error", {
-                            description: status.result.reasoning || "Unknown error occurred",
-                        });
-                        return;
-                    }
-
-                    setPrediction(status.result);
+                        toast.success("Analysis Complete", { description: "Divergence audited." });
+                    });
+                } else if (data.event === 'failed') {
+                    ws.close();
                     setPredicting(false);
-                    toast.success("Mirror Analysis Complete", { description: "Divergence audited." });
+                    toast.error("Analysis Failed", { description: data.message });
                 }
-            }, 1000);
+            };
+
+            ws.onerror = (err) => {
+                console.error("WS Error:", err);
+            };
 
         } catch (e) {
             console.error(e);
@@ -300,28 +308,25 @@ export function MarketTable() {
                             <div className="space-y-6 font-mono text-[10px]">
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-primary font-bold px-1">
-                                        <span className="tracking-widest">AUDITING_ALGO_NARRATIVES</span>
+                                        <span className="tracking-widest uppercase">{statusMessage}</span>
                                         <span className="animate-pulse text-neon-blue">SCANNING...</span>
                                     </div>
                                     <div className="h-1.5 w-full bg-white/5 overflow-hidden rounded-full border border-white/5">
                                         <div className="h-full bg-gradient-to-r from-primary via-neon-blue to-primary shadow-[0_0_15px_#10B981] animate-[ticker_1.5s_linear_infinite]" style={{ width: '40%' }}></div>
                                     </div>
                                 </div>
-                                <div className="space-y-2 text-muted-foreground/60 leading-relaxed p-3 bg-black/40 rounded border border-white/5">
-                                    <p className="text-primary/90 opacity-0 animate-[fade-in_0.3s_forwards] font-bold flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-primary rounded-full" /> [0.0ms] Establishing peer handshake...
+                                <div className="space-y-2 text-muted-foreground/60 leading-relaxed p-3 bg-black/40 rounded border border-white/5 font-mono text-[9px] uppercase">
+                                    <p className="text-primary/90 flex items-center gap-2">
+                                        <span className="w-1 h-1 bg-primary rounded-full animate-pulse" /> [SYNC] Neural_Domain_Active
                                     </p>
-                                    <p className="opacity-0 animate-[fade-in_0.3s_0.2s_forwards] flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-white/20 rounded-full" /> [12.4ms] Orderbook depth verification: COMPLETE
+                                    <p className="flex items-center gap-2">
+                                        <span className="w-1 h-1 bg-white/20 rounded-full" /> [AUTH] Privilege_Level: Analyst
                                     </p>
-                                    <p className="opacity-0 animate-[fade-in_0.3s_0.4s_forwards] flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-white/20 rounded-full" /> [45.1ms] RAG pipeline initiated: indexing external signals...
+                                    <p className="flex items-center gap-2">
+                                        <span className="w-1 h-1 bg-white/20 rounded-full" /> [DATA] RAG_Pipeline_Stabilized
                                     </p>
-                                    <p className="opacity-0 animate-[fade-in_0.3s_0.6s_forwards] flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-white/20 rounded-full" /> [102.8ms] Cross-referencing 4k+ data points...
-                                    </p>
-                                    <p className="text-neon-blue animate-pulse opacity-0 animate-[fade-in_0.3s_0.8s_forwards] font-bold flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-neon-blue rounded-full" /> [158.2ms] MIRROR_DIVERGENCE_ENGINE active...
+                                    <p className="text-neon-blue animate-pulse font-bold flex items-center gap-2">
+                                        <span className="w-1 h-1 bg-neon-blue rounded-full" /> [FLOW] Auditing_In_Progress...
                                     </p>
                                 </div>
                             </div>

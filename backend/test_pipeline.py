@@ -7,14 +7,27 @@ BASE_URL = "http://localhost:8000"
 def test_pipeline():
     print(f"Testing Intelligence Pipeline at {BASE_URL}...")
     
+    # 0. Authenticate
+    print("[0] Authenticating...")
+    token = None
+    try:
+        auth_res = requests.post(f"{BASE_URL}/auth/token", data={"username": "trader", "password": "trader123"})
+        auth_res.raise_for_status()
+        token = auth_res.json()["access_token"]
+        print("    Authenticated as Trader.")
+    except Exception as e:
+        print(f"    Authentication Failed: {e}")
+        return
+
     # 1. Trigger Prediction
     print("[1] Triggering Prediction...")
+    headers = {"Authorization": f"Bearer {token}"}
     try:
         payload = {
             "question": "Brent Crude Oil Physical vs Paper Market Divergence",
             "model": "lfm-thinking"
         }
-        res = requests.post(f"{BASE_URL}/predict", json=payload)
+        res = requests.post(f"{BASE_URL}/predict", json=payload, headers=headers)
         res.raise_for_status()
         data = res.json()
         print(f"    Response: {data}")
@@ -34,7 +47,7 @@ def test_pipeline():
     print("[2] Polling for results...")
     for i in range(30): # 60 seconds max
         try:
-            res = requests.get(f"{BASE_URL}/task/{task_id}")
+            res = requests.get(f"{BASE_URL}/task/{task_id}", headers=headers)
             task_data = res.json()
             status = task_data['status']
             print(f"    [{i*2}s] Status: {status}")

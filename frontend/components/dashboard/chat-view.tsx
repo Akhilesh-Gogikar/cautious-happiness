@@ -42,18 +42,17 @@ export function ChatView() {
         setIsLoading(true);
 
         try {
-            // We use the existing chat API but with a generic context or persona-specific one
-            let context = "General Market Discussion.";
-            if (persona === 'RiskManager') {
-                context = "You are a conservative Risk Manager. Focus on downside protection, variance, and black swan events. Be skeptical.";
-            } else {
-                context = "You are an aggressive Alpha Seeker. Focus on asymmetric upside, potential catalysts, and 'moonshots'.";
-            }
-
             const res = await chatWithModel({
-                question: "General Chat", // Dummy 
-                context: context,
-                user_message: userMsg
+                question: userMsg,
+                history: messages.map(m => ({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: Date.now() / 1000
+                })),
+                context: {
+                    route_path: "Dashboard/Chat",
+                    client_state: { persona: persona }
+                }
             });
 
             setMessages(prev => [...prev, { role: 'assistant', content: res.response, persona }]);
@@ -125,7 +124,7 @@ export function ChatView() {
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-muted-foreground">
-                                model: <span className="text-white">OpenForecaster (Local)</span>
+                                model: <span className="text-white">LFM-Thinking (Local)</span>
                             </div>
                         </div>
                     </CardHeader>

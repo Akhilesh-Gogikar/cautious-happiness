@@ -9,6 +9,17 @@ google-genai
 httpx
 pydantic-settings
 python-dotenv
+--extra-index-url https://download.pytorch.org/whl/cpu
 feedparser
 torch
 transformers
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.2
+python-multipart
+sqlalchemy[asyncio]
+asyncpg
+pgvector
+psycopg2-binary
+alembic
+alpaca-py

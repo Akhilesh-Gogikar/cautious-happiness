@@ -1,226 +1,201 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { NewsFeed } from '@/components/intelligence/NewsFeed';
+import React, { useEffect, useState, useCallback } from 'react';
+import { CompetitorCard } from '@/components/intelligence/CompetitorCard';
+import { SourceFeed } from '@/components/intelligence/SourceFeed';
 import { SentimentGauge } from '@/components/intelligence/SentimentGauge';
-import { NarrativeDivergence } from '@/components/intelligence/NarrativeDivergence';
-import { ShieldCheck, Zap, Activity, AlertTriangle } from 'lucide-react';
+import { Competitor, AnalysisResult, Source } from '@/components/intelligence/types';
+import { ShieldCheck, Zap, Activity, AlertTriangle, Globe } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface NewsItem {
-    id: string;
-    title: string;
-    source: string;
-    published_at: string;
-    summary: string;
-    sentiment?: {
-        label: string;
-        score: number;
-    };
-    link: string;
-}
-
-interface ForecastResult {
-    search_query: string;
-    initial_forecast: number; // 0.0 to 1.0
-    critique: string;
-    adjusted_forecast: number; // 0.0 to 1.0
-    reasoning: string;
-    error?: string;
-}
+const MOCK_COMPETITORS: Competitor[] = [
+    {
+        id: "comp_citadel_commodity",
+        name: "Citadel (Commodities)",
+        description: "High-frequency algorithmic trading desk.",
+        tracked_urls: ["reuters.com", "bloomberg.com"],
+        last_active: new Date().toISOString()
+    },
+    {
+        id: "comp_glencore_algo",
+        name: "Glencore (Algo Desk)",
+        description: "Physical-backed algorithmic hedging strategies.",
+        tracked_urls: ["platts.com", "argusmedia.com"],
+        last_active: new Date().toISOString()
+    }
+];
 
 export function IntelligenceView() {
-    const [news, setNews] = useState<NewsItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [averageScore, setAverageScore] = useState(0);
-
-    // Analysis State
-    const [analysis, setAnalysis] = useState<ForecastResult | null>(null);
-    const [analysisLoading, setAnalysisLoading] = useState(false);
-    const [analysisStatus, setAnalysisStatus] = useState<string>("IDLE");
-    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const [competitors, setCompetitors] = useState<Competitor[]>([]);
+    const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+    const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [sources, setSources] = useState<Source[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-    const fetchNews = useCallback(async () => {
-        try {
-            const res = await fetch(`${API_URL}/intelligence/news`);
-            if (!res.ok) throw new Error('Failed to fetch news');
-            const data: NewsItem[] = await res.json();
-            setNews(data);
-
-            if (data.length > 0) {
-                let total = 0;
-                let count = 0;
-                data.forEach(item => {
-                    if (item.sentiment) {
-                        let score = item.sentiment.score;
-                        if (item.sentiment.label === 'negative') score = -score;
-                        if (item.sentiment.label === 'neutral') score = 0;
-                        total += score;
-                        count++;
-                    }
-                });
-                setAverageScore(count > 0 ? total / count : 0);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }, [API_URL]);
-
-    const runAnalysis = useCallback(async (topic: string) => {
-        setAnalysisLoading(true);
-        setAnalysisStatus("INITIATING_SCAN");
-        try {
-            // 1. Trigger Prediction
-            const res = await fetch(`${API_URL}/predict`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: topic, model: 'lfm-thinking' })
-            });
-
-            if (!res.ok) throw new Error("Prediction request failed");
-
-            const { task_id, status, result } = await res.json();
-
-            // If cached immediately
-            if (status === 'cached' || status === 'completed') {
-                setAnalysis(result);
-                setAnalysisStatus("COMPLETED");
-                setAnalysisLoading(false);
-                return;
-            }
-
-            // 2. Poll for results
-            setAnalysisStatus("PROCESSING_NEURAL_NET");
-            const poll = setInterval(async () => {
-                try {
-                    const pollRes = await fetch(`${API_URL}/task/${task_id}`);
-                    const pollData = await pollRes.json();
-
-                    if (pollData.status === 'completed') {
-                        clearInterval(poll);
-                        setAnalysis(pollData.result);
-                        setAnalysisStatus("COMPLETED");
-                        setAnalysisLoading(false);
-                    } else if (pollData.status === 'failed') {
-                        clearInterval(poll);
-                        setAnalysisStatus("FAILED");
-                        setAnalysisLoading(false);
-                    }
-                } catch (e) {
-                    clearInterval(poll);
-                    console.error("Polling error", e);
-                }
-            }, 2000);
-
-            pollingRef.current = poll;
-
-        } catch (e) {
-            console.error("Analysis failed", e);
-            setAnalysisStatus("ERROR");
-            setAnalysisLoading(false);
-        }
-    }, [API_URL]);
-
     useEffect(() => {
-        fetchNews();
-        // Trigger a default analysis on mount for the "Headliner" commodity
-        runAnalysis("Brent Crude Oil Physical vs Paper Market Divergence");
+        fetch(`${API_URL}/mirror/competitors`)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch competitors");
+                return res.json();
+            })
+            .then(data => setCompetitors(data))
+            .catch(err => {
+                console.error("Using Mock Competitors:", err);
+                setCompetitors(MOCK_COMPETITORS);
+            });
+    }, [API_URL]);
 
-        return () => {
-            if (pollingRef.current) clearInterval(pollingRef.current);
-        };
-    }, [fetchNews, runAnalysis]);
+    const handleAnalyze = async (id: string) => {
+        setSelectedCompetitor(id);
+        setIsAnalyzing(true);
+        setAnalysis(null);
+        setSources([]);
+        setError(null);
+
+        try {
+            const res = await fetch(`${API_URL}/mirror/analyze/${id}`, {
+                method: "POST"
+            });
+            if (!res.ok) throw new Error("Analysis failed");
+
+            const result: AnalysisResult = await res.json();
+            setAnalysis(result);
+
+            // Simulation of sources for demo since API doesn't return them yet
+            setSources([
+                {
+                    id: "src_1",
+                    url: "#",
+                    domain: "bloomberg.com",
+                    title: `Algorithmic flow detected for ${id}`,
+                    snippet: result.summary,
+                    published_at: new Date().toISOString()
+                },
+                {
+                    id: "src_2",
+                    url: "#",
+                    domain: "reuters.com",
+                    title: "Market impact analysis",
+                    snippet: "Crowd sentiment suggests high correlation with momentum factors.",
+                    published_at: new Date().toISOString()
+                }
+            ]);
+
+        } catch (error) {
+            console.error(error);
+            setError("CONNECTION_LOST // UNABLE TO MIRROR TARGET");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6 animate-fade-in h-full flex flex-col">
+            <div className="flex items-center justify-between shrink-0">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                         <Zap className="w-6 h-6 text-primary" />
                         INTELLIGENCE_MIRROR
                     </h2>
-                    <p className="text-sm text-muted-foreground font-mono">REAL-TIME SENTIMENT DECODING & NARRATIVE AUDIT</p>
+                    <p className="text-sm text-muted-foreground font-mono">COUNTER-INTELLIGENCE // COMPETITOR TRACKING</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    {analysisLoading && (
+                    {isAnalyzing && (
                         <div className="flex items-center gap-2 text-xs font-mono text-cyber-blue animate-pulse">
                             <Activity className="w-3 h-3" />
-                            {analysisStatus}...
+                            INTERCEPTING_SIGNALS...
                         </div>
                     )}
                     <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm text-xs font-mono text-primary font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                        LIVE FEED ACTIVE
+                        SYSTEM ACTIVE
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Sentiment Gauge & Metrics */}
-                <div className="lg:col-span-1 space-y-6">
-                    <SentimentGauge score={averageScore} />
-
-                    {/* Active Intelligence Spotlight */}
-                    {analysis ? (
-                        <NarrativeDivergence
-                            market={analysis.search_query.split(' ')[0] + " Crude"} // Simple truncate for display
-                            sentimentScore={Math.round(analysis.initial_forecast * 100)}
-                            physicalScore={Math.round(analysis.adjusted_forecast * 100)}
-                            divergenceReason={analysis.critique}
-                        />
-                    ) : (
-                        <div className="h-64 border border-white/10 rounded-xl bg-black/40 flex flex-col items-center justify-center p-6 text-center space-y-4">
-                            {analysisStatus === "ERROR" ? (
-                                <>
-                                    <AlertTriangle className="w-10 h-10 text-red-500/50" />
-                                    <p className="text-xs font-mono text-red-400">CONNECTION_LOST // RETRYING...</p>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                                    <p className="text-xs font-mono text-muted-foreground animate-pulse">{analysisStatus}</p>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="glass-panel p-6 bg-black/40 border border-white/10 rounded-xl">
-                        <h3 className="text-sm font-black font-mono text-muted-foreground uppercase tracking-widest mb-4">Metric_Audit</h3>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-muted-foreground font-mono">SOURCES_INGESTED</span>
-                                <span className="text-white font-mono text-sm bg-white/5 px-2 py-0.5 rounded">
-                                    {analysis ? analysis.news_summary?.length || 0 : 0}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-muted-foreground font-mono">ARTICLES_PROCESSED</span>
-                                <span className="text-white font-mono text-sm bg-white/5 px-2 py-0.5 rounded">{news.length}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-muted-foreground font-mono">MODEL_CONFIDENCE</span>
-                                <span className="text-emerald-400 font-mono text-sm font-bold flex items-center gap-1">
-                                    <ShieldCheck className="w-3 h-3" />
-                                    {analysis ? "98.2%" : "CALCULATING..."}
-                                </span>
-                            </div>
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+                {/* Left Column: Watchlist (4 cols) */}
+                <div className="lg:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground mb-2">
+                        <ShieldCheck className="w-4 h-4 text-primary" />
+                        TARGET_PROTOCOL_LIST
                     </div>
+                    {competitors.map(comp => (
+                        <CompetitorCard
+                            key={comp.id}
+                            competitor={comp}
+                            onAnalyze={handleAnalyze}
+                        />
+                    ))}
                 </div>
 
-                {/* Right Column: News Feed */}
-                <div className="lg:col-span-2">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center h-96 border border-white/5 rounded-xl bg-black/20">
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse-glow" />
-                                <Zap className="w-12 h-12 text-primary/50 relative z-10 animate-pulse" />
-                            </div>
-                            <p className="mt-4 text-xs font-mono text-muted-foreground tracking-widest uppercase">INITIALIZING_NEURAL_LINK...</p>
+                {/* Right Column: Analysis (8 cols) */}
+                <div className="lg:col-span-8 flex flex-col space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+
+                    {/* Top Row: Gauge + Findings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="h-full">
+                            {analysis ? (
+                                <SentimentGauge score={analysis.sentiment_score} conviction={analysis.crowd_conviction} />
+                            ) : (
+                                <Card className="h-full bg-black/40 border-dashed border-white/10 flex items-center justify-center min-h-[200px]">
+                                    <div className="text-center p-6">
+                                        <Activity className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                                        <p className="text-xs font-mono text-muted-foreground">SELECT_TARGET_FOR_ANALYSIS</p>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
-                    ) : (
-                        <NewsFeed items={news} />
-                    )}
+
+                        <div className="h-full">
+                            <Card className="h-full border-primary/10 bg-black/40">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-mono text-muted-foreground">KEY_FINDINGS</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {isAnalyzing ? (
+                                        <div className="space-y-4 animate-pulse">
+                                            <div className="h-2 bg-primary/20 rounded w-3/4"></div>
+                                            <div className="h-2 bg-primary/20 rounded w-1/2"></div>
+                                            <div className="h-2 bg-primary/20 rounded w-5/6"></div>
+                                            <div className="h-2 bg-primary/20 rounded w-2/3"></div>
+                                        </div>
+                                    ) : analysis ? (
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-foreground/90 leading-relaxed font-mono">
+                                                {analysis.summary}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {analysis.key_phrases.map((phrase, i) => (
+                                                    <span key={i} className="px-2 py-1 rounded-sm bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">
+                                                        {phrase}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : error ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-red-400 space-y-2">
+                                            <AlertTriangle className="h-6 w-6" />
+                                            <p className="text-xs font-mono">{error}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-muted-foreground font-mono text-center pt-12 opacity-50">
+                                            AWAITING_DATA...
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+
+                    {/* Bottom Row: Source Feed */}
+                    <div className="flex-1 min-h-[300px]">
+                        <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground mb-4">
+                            <Globe className="w-4 h-4 text-cyber-blue" />
+                            INTERCEPTED_STREAMS
+                        </div>
+                        <SourceFeed sources={sources} />
+                    </div>
                 </div>
             </div>
         </div>

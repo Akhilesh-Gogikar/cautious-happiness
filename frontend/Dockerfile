@@ -1,13 +1,32 @@
-FROM node:18-alpine
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
 
+# Stage 2: Builder
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Use a placeholder for build time, as NEXT_PUBLIC_API_URL is handled at runtime or via proxy
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN npm run build
+
+# Stage 3: Runner
+FROM node:18-alpine AS runner
 WORKDIR /app
 
-COPY package.json .
-# We are only copying package.json for now to allow `npm install` to work in the container 
-# even if the user hasn't run it locally. 
-# Ideally, we would also copy package-lock.json if it existed.
-RUN npm install
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-COPY . .
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
-CMD ["npm", "run", "dev"]
+EXPOSE 3000
+
+ENV PORT 3000
+
+CMD ["npm", "run", "start"]
