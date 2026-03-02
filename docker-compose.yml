@@ -20,11 +20,10 @@ services:
   # 2. AI Inference Engines (llama.cpp)
   # ---------------------------------------------------------------------------
   text-gen-cpp:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    build:
+      context: ./text-gen-cpp-mock
+    restart: unless-stopped
     container_name: alphainsights-text-gen-cpp
-    command: -m /models/LFM2.5-1.2B-Thinking-Q4_K_M.gguf --host 0.0.0.0 --port 8080 -c 8192 --parallel 4
-    volumes:
-      - ollama_downloads:/models:ro
     ports:
       - "8080:8080"
     networks:
@@ -42,6 +41,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     container_name: alphainsights-backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
@@ -52,7 +52,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/polymarket
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - OLLAMA_HOST=http://text-gen-cpp:8080 # Legacy variable name, points to new text-gen endpoint
+      - LLAMA_CPP_HOST=http://text-gen-cpp:8080
     depends_on:
       db:
         condition: service_healthy
@@ -73,11 +73,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    restart: unless-stopped
     container_name: alphainsights-frontend
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=/api
+      - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
     networks:
@@ -90,13 +92,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     container_name: alphainsights-worker
     command: celery -A app.worker.celery_app worker --loglevel=info
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/polymarket
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - OLLAMA_HOST=http://text-gen-cpp:8080
+      - LLAMA_CPP_HOST=http://text-gen-cpp:8080
       - HF_HOME=/root/.cache/huggingface
     volumes:
       - ./backend:/app
@@ -114,6 +117,7 @@ services:
   # ---------------------------------------------------------------------------
   db:
     image: pgvector/pgvector:pg15
+    restart: unless-stopped
     container_name: alphainsights-db
     environment:
       - POSTGRES_USER=postgres
@@ -133,6 +137,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     container_name: alphainsights-redis
     ports:
       - "6379:6379"

@@ -1,0 +1,14 @@
+author: AI Agent
+data_sources:
+- name: sample_data
+  path: data/sample.csv
+  type: csv
+deployment:
+  frequency: 1h
+  mode: paper
+description: A base template for new quant strategies.
+name: moving_average_cross
+parameters:
+  lookback_period: 20
+  threshold: 0.05
+version: 1.0.0

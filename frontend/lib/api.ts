@@ -1,4 +1,22 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3, backoff = 1000) {
+    try {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Status ${res.status}`);
+        }
+        return await res.json();
+    } catch (err: any) {
+        if (retries > 0) {
+            console.warn(`Fetch failed: ${err.message}. Retrying in ${backoff}ms... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw err;
+    }
+}
 
 export async function fetchMarkets() {
     const res = await fetch(`${API_URL}/markets`);
@@ -7,13 +25,11 @@ export async function fetchMarkets() {
 }
 
 export async function predictMarket(question: string) {
-    const res = await fetch(`${API_URL}/predict`, {
+    return fetchWithRetry(`${API_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
     });
-    if (!res.ok) throw new Error('Failed to start prediction');
-    return res.json();
 }
 
 export async function getTaskStatus(taskId: string) {
@@ -39,18 +55,11 @@ export async function chatWithModel(payload: {
     context?: ChatContext;
     model?: string;
 }) {
-    const res = await fetch(`${API_URL}/chat`, {
+    return fetchWithRetry(`${API_URL}/chat`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // In a real app, add Authorization header here
-            // 'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Chat failed: ${err}`);
-    }
-    return res.json();
 }

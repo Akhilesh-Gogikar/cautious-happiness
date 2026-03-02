@@ -25,14 +25,22 @@ class ChatService:
             
             # 2. Retrieve Context & History (Last 10 messages for context)
             # In a real app, we'd vector search here too
-            stmt = select(ChatMessage).where(ChatMessage.user_id == user_id).order_by(ChatMessage.timestamp.desc()).limit(10)
+            stmt = select(ChatMessage).where(ChatMessage.user_id == user_id).order_by(ChatMessage.timestamp.desc()).limit(11) # 10 history + 1 current (already added)
             result = await session.execute(stmt)
             history_objs = result.scalars().all()
-            # Reverse to chronological order
-            history = [{"role": msg.role, "content": msg.content} for msg in reversed(history_objs)]
+            
+            # Convert DB objects to Pydantic models for the engine
+            from app.models import ChatMessage as ChatMessageModel
+            # Filter out the message we just added (or include it if the engine expects it, but usually history is previous messages)
+            # Actually, the engine expects 'history' to be previous messages. 
+            # The current question is in request.question.
+            # History_objs is descending, so history_objs[0] is the current msg (role: user, content: request.question)
+            request.history = [
+                ChatMessageModel(role=msg.role, content=msg.content, timestamp=msg.timestamp)
+                for msg in reversed(history_objs[1:]) # Skip current, reverse to chronological
+            ]
             
             # 3. Generate Response (using Engine)
-            # Ideally passthrough history to engine
             response_text = await self.engine.chat_with_model(request)
             
             # 4. Add Assistant Message to DB

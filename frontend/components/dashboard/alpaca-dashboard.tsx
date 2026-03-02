@@ -31,11 +31,18 @@ export function AlpacaDashboard() {
         setLoading(true);
         setError(null);
         try {
-            // These would be real API calls to the backend orchestrator
-            // For now, we simulate the structure based on the AlpacaConnector tools
+            const token = localStorage.getItem('token');
+            const apiKey = localStorage.getItem("ALPACA_API_KEY");
+            const secretKey = localStorage.getItem("ALPACA_SECRET_KEY");
+
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (apiKey) headers['x-alpaca-api-key'] = apiKey;
+            if (secretKey) headers['x-alpaca-secret'] = secretKey;
+
             const accountResp = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tools/call`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'get_account', arguments: {} })
             });
 
@@ -48,7 +55,7 @@ export function AlpacaDashboard() {
 
             const positionsResp = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tools/call`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'list_positions', arguments: {} })
             });
 
@@ -65,8 +72,13 @@ export function AlpacaDashboard() {
     };
 
     useEffect(() => {
-        // In a real app, we'd trigger this via a 'Connect Alpaca' button or on load if creds exist
-        // fetchData(); 
+        const apiKey = localStorage.getItem("ALPACA_API_KEY");
+        if (apiKey) {
+            fetchData();
+        } else {
+            setLoading(false);
+            setError("No Alpaca credentials found in settings. Please configure them in SYSTEM_CONFIG.");
+        }
     }, []);
 
     if (loading && !account) {

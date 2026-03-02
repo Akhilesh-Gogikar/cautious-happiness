@@ -1,7 +1,7 @@
 import os
 import asyncio
 from duckduckgo_search import DDGS
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from app.models import Source
 from app.core.ai_client import ai_client
 
@@ -83,10 +83,27 @@ class IntelligenceService:
         except:
             return []
 
-    async def chat_with_model(self, req: "ChatRequest") -> str:
-        # Simplified for refactor, delegating to ai_client
-        model = "lfm-thinking" if req.model == "openforecaster" else req.model
-        provider = "llama-cpp" if model == "lfm-thinking" else "ollama"
-        prompt = f"Chat context: {req.question}"
+    async def chat_with_model(self, req: "ChatRequest", model: str = None) -> str:
+        """
+        Chat with the model. Improved to handle history and retryable model/provider selection.
+        """
+        # Orchestrator might pass model as kwarg
+        model = model or (req.model if req.model != "openforecaster" else "lfm-thinking")
+        
+        # Default to llama-cpp for local models unless it's explicitly a known remote provider
+        provider = "llama-cpp" 
+        if model == "gemini-pro":
+            provider = "gemini"
+        elif os.getenv("OLLAMA_HOST") and model != "lfm-thinking":
+            provider = "ollama"
+        
+        # Construct primitive history-aware prompt if history exists
+        prompt = ""
+        if hasattr(req, 'history') and req.history:
+            for msg in req.history[-5:]: # Use last 5 for context
+                prompt += f"{msg.role.upper()}: {msg.content}\n"
+        
+        prompt += f"USER: {req.question}\nASSISTANT:"
+        
         return await ai_client.generate(prompt, provider=provider, model=model)
 

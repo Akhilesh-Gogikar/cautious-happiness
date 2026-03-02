@@ -18,9 +18,8 @@ class FallbackModelOrchestrator:
         for model in self.tiers:
             try:
                 kwargs['model'] = model
-                # Implement dynamic timeout per tier: 
                 # Primary (Thinking) gets more time, secondaries are faster.
-                timeout = 60 if model == self.tiers[0] else 30
+                timeout = 300 if model == self.tiers[0] else 30
                 
                 print(f"Neural Resilience: Attempting with {model} (timeout={timeout}s)...")
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
@@ -134,6 +133,9 @@ class IntelligenceMirrorEngine:
     async def chat_with_model(self, req: ChatRequest) -> str:
         """
         Chat with the model about a specific forecast context.
-        Delegates to IntelligenceService.
+        Delegates to IntelligenceService with fallback orchestration.
         """
-        return await self.intelligence_service.chat_with_model(req)
+        return await self.orchestrator.run_with_fallback(
+            self.intelligence_service.chat_with_model,
+            req
+        )

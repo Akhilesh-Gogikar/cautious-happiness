@@ -5,6 +5,7 @@ import { SentimentGauge } from '@/components/intelligence/SentimentGauge';
 import { Competitor, AnalysisResult, Source } from '@/components/intelligence/types';
 import { ShieldCheck, Zap, Activity, AlertTriangle, Globe } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DecisionProtocol } from '@/components/intelligence/DecisionProtocol';
 
 const MOCK_COMPETITORS: Competitor[] = [
     {
@@ -129,12 +130,13 @@ export function IntelligenceView() {
                     ))}
                 </div>
 
+
                 {/* Right Column: Analysis (8 cols) */}
                 <div className="lg:col-span-8 flex flex-col space-y-6 overflow-y-auto pr-2 custom-scrollbar">
 
-                    {/* Top Row: Gauge + Findings */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="h-full">
+                    {/* Top Row: Gauge + Findings + Decision */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-1">
                             {analysis ? (
                                 <SentimentGauge score={analysis.sentiment_score} conviction={analysis.crowd_conviction} />
                             ) : (
@@ -147,7 +149,7 @@ export function IntelligenceView() {
                             )}
                         </div>
 
-                        <div className="h-full">
+                        <div className="md:col-span-1">
                             <Card className="h-full border-primary/10 bg-black/40">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-mono text-muted-foreground">KEY_FINDINGS</CardTitle>
@@ -185,6 +187,22 @@ export function IntelligenceView() {
                                     )}
                                 </CardContent>
                             </Card>
+                        </div>
+
+                        <div className="md:col-span-1">
+                            {analysis ? (
+                                <DecisionProtocol
+                                    analysis={analysis}
+                                    symbol={selectedCompetitor === "comp_citadel_commodity" ? "WTI" : "BRENT"}
+                                />
+                            ) : (
+                                <Card className="h-full bg-black/40 border-dashed border-white/10 flex items-center justify-center min-h-[200px]">
+                                    <div className="text-center p-6 opacity-30">
+                                        <Zap className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                                        <p className="text-[10px] font-mono text-muted-foreground uppercase">Decision Protocol Disabled</p>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
                     </div>
 

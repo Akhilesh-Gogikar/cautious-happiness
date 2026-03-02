@@ -103,3 +103,11 @@ class ChatResponse(BaseModel):
     response: str
     suggested_actions: Optional[List[dict]] = None
 
+
+class TradeRequest(BaseModel):
+    symbol: str
+    side: str  # buy, sell
+    quantity: float
+    target_id: Optional[str] = None
+    provider: str = "polymarket"
+

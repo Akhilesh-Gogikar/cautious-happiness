@@ -44,14 +44,35 @@ class MockMCPConnector(BaseConnector):
         
         await asyncio.sleep(1.0) # Simulate network lag
 
+        import time
+        import math
+        current_time = time.time()
+
         if name == "get_stock_price":
             ticker = arguments.get("ticker", "UNKNOWN")
-            # Mock data
-            prices = {"AAPL": 150.0, "GOOGL": 2800.0, "TSLA": 700.0}
-            return {"price": prices.get(ticker, 100.0), "currency": "USD"}
+            
+            # Dynamic mock data
+            base_prices = {"AAPL": 150.0, "GOOGL": 2800.0, "TSLA": 700.0}
+            base = base_prices.get(ticker, 100.0)
+            
+            # Create a unique phase shift for the ticker
+            seed = float(hash(ticker) % 1000) / 1000.0
+            
+            # Simulate a continuous price movement based on time
+            # Fast flutter (minutes) + slow trend (hours)
+            flutter = math.sin((current_time / 60.0) + (seed * math.pi * 2)) * 0.02
+            trend = math.cos((current_time / 3600.0) + (seed * math.pi * 2)) * 0.05
+            
+            current_price = base * (1.0 + flutter + trend)
+            
+            return {"price": round(current_price, 2), "currency": "USD"}
         
         if name == "get_fed_rate":
-            return {"rate": 5.25, "unit": "percent"}
+            # Realistically fed rates change slowly, so we'll simulate a very slow cycle 
+            # over a period of many days, starting from a base 5.25%
+            cycle = math.sin(current_time / (86400.0 * 30.0)) * 0.75 # +/- 0.75% over months
+            current_rate = 5.25 + cycle
+            return {"rate": round(current_rate, 2), "unit": "percent"}
 
         raise ValueError(f"Tool {name} not found")
 
@@ -63,5 +84,16 @@ class MockMCPConnector(BaseConnector):
 
     async def read_resource(self, uri: str) -> str:
         if uri == "mcp://finance/market_summary":
-            return "Market is bullish. Tech sector leading gains."
+            import time
+            import math
+            current_time = time.time()
+            sentiment = math.sin(current_time / 3600.0)
+            
+            if sentiment > 0.5:
+                return "Market is strongly bullish today. Tech sector and energy leading gains."
+            elif sentiment > -0.5:
+                return "Market is trading sideways with mixed signals across sectors."
+            else:
+                return "Market is bearish. Yields are rising and tech stocks are selling off."
+            
         return "Resource not found."

@@ -41,7 +41,7 @@ class StrategyFactory:
                     "temperature": 0.2,
                     "stop": ["[/INST]"]
                 }
-                response = await client.post(url, json=payload, timeout=60.0)
+                response = await client.post(url, json=payload, timeout=45.0)
                 if response.status_code == 200:
                      return response.json().get('content', '')
             except Exception as e:

@@ -60,6 +60,11 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
         try {
             const res = await chatWithModel({
                 question: userMsg,
+                history: messages.map(m => ({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: Date.now() / 1000
+                })),
                 context: {
                     route_path: "/chat",
                     client_state: {

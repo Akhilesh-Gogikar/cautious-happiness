@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { MarketTable } from '@/components/dashboard/market-table';
+import { DataMatrix } from '@/components/dashboard/data-matrix-feed';
 import { StatCards } from '@/components/dashboard/stat-cards';
 import { Ticker } from '@/components/ui/ticker';
 import { Sidebar } from '@/components/ui/sidebar';
 import { SettingsModal } from '@/components/settings/settings-modal';
+import { NotificationCenter } from '@/components/layout/notification-center';
+import { SystemStatusDropdown } from '@/components/dashboard/system-status-dropdown';
 import { PortfolioView } from '@/components/dashboard/portfolio-view';
 import { AlphaScanner } from '@/components/dashboard/alpha-scanner';
 import { StrategyView } from '@/components/dashboard/strategy-view';
@@ -103,20 +106,7 @@ export default function Home() {
                                     v4.2.0_STABLE
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Activity className="w-3 h-3 text-primary animate-pulse" />
-                                    SYSTEM_OPTIMAL
-                                </p>
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Cpu className="w-3 h-3 text-indigo" />
-                                    NEURAL_ENGINE_ACTIVE
-                                </p>
-                                <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1.5 leading-none">
-                                    <Zap className="w-3 h-3 text-gold" />
-                                    LOW_LATENCY
-                                </p>
-                            </div>
+                            <SystemStatusDropdown />
                         </div>
 
                         <div className="flex items-center gap-6">
@@ -140,6 +130,7 @@ export default function Home() {
                                     showBalance={false}
                                     chainStatus="icon"
                                 />
+                                <NotificationCenter />
                                 <SettingsModal />
                             </div>
                         </div>
@@ -152,7 +143,12 @@ export default function Home() {
 
                     {/* MAIN CONTENT SWITCH */}
                     <div className="grid gap-6 animate-fade-in [animation-delay:500ms] opacity-0 fill-mode-forwards pb-10">
-                        {currentView === 'markets' && <MarketTable />}
+                        {currentView === 'markets' && (
+                            <div className="space-y-6 flex flex-col">
+                                <MarketTable />
+                                <DataMatrix />
+                            </div>
+                        )}
                         {currentView === 'portfolio' && <PortfolioView />}
 
                         {currentView === 'alpaca_markets' && <AlpacaDashboard />}

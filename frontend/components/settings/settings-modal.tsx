@@ -14,18 +14,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export function SettingsModal() {
     const [model, setModel] = useState("lfm-thinking");
     const [geminiKey, setGeminiKey] = useState("");
+    const [alpacaKey, setAlpacaKey] = useState("");
+    const [alpacaSecret, setAlpacaSecret] = useState("");
     const { user, toggleRole, logout } = useAuth();
     const router = useRouter();
+
+    useEffect(() => {
+        const storedAlpacaKey = localStorage.getItem("ALPACA_API_KEY");
+        const storedAlpacaSecret = localStorage.getItem("ALPACA_SECRET_KEY");
+        if (storedAlpacaKey) setAlpacaKey(storedAlpacaKey);
+        if (storedAlpacaSecret) setAlpacaSecret(storedAlpacaSecret);
+
+        const storedModel = localStorage.getItem("POLY_MODEL");
+        const storedGeminiKey = localStorage.getItem("POLY_GEMINI_KEY");
+        if (storedModel) setModel(storedModel);
+        if (storedGeminiKey) setGeminiKey(storedGeminiKey);
+    }, []);
 
     const handleSave = () => {
         localStorage.setItem("POLY_MODEL", model);
         if (geminiKey) localStorage.setItem("POLY_GEMINI_KEY", geminiKey);
+
+        if (alpacaKey) localStorage.setItem("ALPACA_API_KEY", alpacaKey);
+        if (alpacaSecret) localStorage.setItem("ALPACA_SECRET_KEY", alpacaSecret);
     };
 
     const handleLogout = () => {
@@ -50,7 +67,7 @@ export function SettingsModal() {
                         Configure Neural Engine parameters and Access Control.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-6 py-4">
+                <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto">
                     {/* Role Switcher for Admin Only */}
                     {user?.email.toLowerCase() === 'aki@onenew.ai' && (
                         <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-3">
@@ -68,32 +85,65 @@ export function SettingsModal() {
                         </div>
                     )}
 
-                    <div className="space-y-2">
-                        <Label htmlFor="model" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                            Inference Model
-                        </Label>
-                        <Input
-                            id="model"
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="gemini" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                            Gemini API Key (Critic)
-                        </Label>
-                        <Input
-                            id="gemini"
-                            type="password"
-                            value={geminiKey}
-                            onChange={(e) => setGeminiKey(e.target.value)}
-                            placeholder="Ex: AIzaSy..."
-                            className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                        />
+                    <div className="space-y-4">
+                        <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1">Provider Config</Label>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="alpaca-key" className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                Alpaca API Key
+                            </Label>
+                            <Input
+                                id="alpaca-key"
+                                type="password"
+                                value={alpacaKey}
+                                onChange={(e) => setAlpacaKey(e.target.value)}
+                                placeholder="PK..."
+                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="alpaca-secret" className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                Alpaca Secret Key
+                            </Label>
+                            <Input
+                                id="alpaca-secret"
+                                type="password"
+                                value={alpacaSecret}
+                                onChange={(e) => setAlpacaSecret(e.target.value)}
+                                placeholder="..."
+                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
+                            />
+                        </div>
+
+                        <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1 mt-4">Model Config</Label>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="model" className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                Inference Model
+                            </Label>
+                            <Input
+                                id="model"
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="gemini" className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                Gemini API Key (Critic)
+                            </Label>
+                            <Input
+                                id="gemini"
+                                type="password"
+                                value={geminiKey}
+                                onChange={(e) => setGeminiKey(e.target.value)}
+                                placeholder="Ex: AIzaSy..."
+                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
+                            />
+                        </div>
                     </div>
                 </div>
-                <DialogFooter className="flex-col sm:flex-col gap-2">
+                <DialogFooter className="flex-col sm:flex-col gap-2 mt-4">
                     <Button onClick={handleSave} className="w-full bg-primary text-black hover:bg-emerald-400 font-bold tracking-widest uppercase">
                         SAVE CONFIGURATION
                     </Button>

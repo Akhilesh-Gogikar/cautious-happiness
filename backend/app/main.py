@@ -19,6 +19,9 @@ from app.routers.chat import router as chat_router
 from app.domain.intelligence import router as intelligence_router
 from app.strategy import router as strategy_router
 from app.mirror.router import router as mirror_router
+from app.routers.scanner import router as scanner_router
+from app.routers.demo import router as demo_router
+from app.routers.tools import router as tools_router
 
 # Configure Structured Logging
 logging.basicConfig(level=logging.INFO)
@@ -81,6 +84,9 @@ app.include_router(chat_router)
 app.include_router(intelligence_router)
 app.include_router(strategy_router)
 app.include_router(mirror_router)
+app.include_router(scanner_router)
+app.include_router(tools_router)
+app.include_router(demo_router, prefix="/demo", tags=["demo"])
 
 @app.get("/health")
 async def health_check():

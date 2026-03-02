@@ -1,0 +1,21 @@
+# Strategy Configuration Template
+name: "Template Strategy"
+version: "1.0.0"
+author: "AI Agent"
+description: "A base template for new quant strategies."
+
+# Data Requirements
+data_sources:
+  - name: "sample_data"
+    type: "csv"
+    path: "data/sample.csv"
+
+# Hyperparameters
+parameters:
+  lookback_period: 20
+  threshold: 0.05
+
+# Deployment Settings
+deployment:
+  mode: "paper" # paper, live, backtest
+  frequency: "1h"

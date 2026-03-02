@@ -25,6 +25,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-simple-code-editor": "^0.14.1",
+    "reactflow": "^11.11.4",
     "sonner": "^1.2.4",
     "tailwind-merge": "^2.1.0",
     "tailwindcss-animate": "^1.0.7",

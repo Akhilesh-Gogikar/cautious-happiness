@@ -9,10 +9,10 @@ from .base import BaseConnector, ToolDefinition, ResourceDefinition
 logger = logging.getLogger(__name__)
 
 class AlpacaConnector(BaseConnector):
-    def __init__(self):
-        self.api_key = os.getenv("ALPACA_API_KEY")
-        self.secret_key = os.getenv("ALPACA_SECRET_KEY")
-        self.base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+    def __init__(self, api_key: Optional[str] = None, secret_key: Optional[str] = None, base_url: Optional[str] = None):
+        self.api_key = api_key or os.getenv("ALPACA_API_KEY")
+        self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY")
+        self.base_url = base_url or os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
         self.client: Optional[TradingClient] = None
 
     async def connect(self):

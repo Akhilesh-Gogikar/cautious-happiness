@@ -8,6 +8,9 @@ class ExecutionService:
     async def construct_trade_payload(
         self, 
         provider: str = "polymarket",
+        symbol: str = "BRENT",
+        side: str = "buy",
+        quantity: float = 1.0,
         probability_score: float = 0.5,
         order_book: List[Dict[str, float]] = None,
         bankroll: float = 1000.0
@@ -24,29 +27,35 @@ class ExecutionService:
                 {"price": 0.85, "size": 500}
             ]
 
-        # Calculate optimal size
-        sizing_result = self.kelly_engine.calculate_optimal_size(
+        # Calculate optimal size (if quantity is 0, we use Kelly)
+        target_size = quantity if quantity > 0 else self.kelly_engine.calculate_optimal_size(
             model_probability=probability_score,
             order_book=order_book,
             bankroll=bankroll
-        )
+        )['optimal_size']
 
         if provider == "alpaca":
             return {
                 "status": "alpaca_ready",
-                "message": f"Alpaca trade triggered for {sizing_result['optimal_size']} units.",
+                "message": f"Alpaca {side} triggered for {target_size} units of {symbol}.",
                 "provider": "alpaca",
-                "sizing": sizing_result
+                "execution_details": {
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": target_size
+                }
             }
 
         return {
             "status": "ready_to_sign",
             "provider": "polymarket",
-            "sizing": sizing_result,
+            "symbol": symbol,
+            "side": side,
+            "quantity": target_size,
             "tx_payload": {
                 "to": "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", # Polymarket CTF Exchange
-                "data": "0x095ea7b3000000000000000000000000...", # Mock Hex data
-                "value": str(int(sizing_result['optimal_size'] * 10**6)), # USDC Decimals
+                "data": f"0x095ea7b3...{symbol}...{side}", # Mock Hex data
+                "value": str(int(target_size * 10**6)), # USDC Decimals
                 "chainId": 137 # Polygon
             }
         }

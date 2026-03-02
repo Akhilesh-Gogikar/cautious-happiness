@@ -1,0 +1,35 @@
+INFO:     127.0.0.1:55036 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56886 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53098 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53080 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34252 - "GET /health HTTP/1.1" 200 OK
+INFO:     176.65.139.44:56700 - "POST /formaction HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53880 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39274 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49698 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39140 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51394 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60910 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33934 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37448 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52434 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55284 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50634 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56124 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52006 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50760 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34106 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51340 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44676 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58816 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51570 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45984 - "GET /health HTTP/1.1" 200 OK
+LLM Call Failed: 
+INFO:     172.19.0.1:50458 - "POST /strategy/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42850 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57646 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46198 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41498 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38408 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37032 - "GET /health HTTP/1.1" 200 OK
