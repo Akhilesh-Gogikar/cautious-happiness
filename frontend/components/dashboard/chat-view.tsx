@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Send, Bot, User, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Send, Bot, User, Sparkles, ShieldCheck, BrainCircuit, Zap } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { chatWithModel } from '@/lib/api';
+import { chatWithModelStream } from '@/lib/api';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -24,6 +24,7 @@ export function ChatView() {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [thinkingMessage, setThinkingMessage] = useState('');
     const [persona, setPersona] = useState<'Analyst' | 'RiskManager'>('Analyst');
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +43,9 @@ export function ChatView() {
         setIsLoading(true);
 
         try {
-            const res = await chatWithModel({
+            setMessages(prev => [...prev, { role: 'assistant', content: '', persona }]);
+
+            await chatWithModelStream({
                 question: userMsg,
                 history: messages.map(m => ({
                     role: m.role,
@@ -53,12 +56,25 @@ export function ChatView() {
                     route_path: "Dashboard/Chat",
                     client_state: { persona: persona }
                 }
+            }, {
+                onThinking: (message) => setThinkingMessage(message),
+                onToken: (token) => {
+                    setThinkingMessage('');
+                    setMessages(prev => {
+                        const copy = [...prev];
+                        const last = copy[copy.length - 1];
+                        if (last && last.role === 'assistant') {
+                            copy[copy.length - 1] = { ...last, content: `${last.content}${token}`, persona };
+                        }
+                        return copy;
+                    });
+                },
+                onDone: () => setThinkingMessage('')
             });
-
-            setMessages(prev => [...prev, { role: 'assistant', content: res.response, persona }]);
         } catch (error) {
             setMessages(prev => [...prev, { role: 'assistant', content: "Error communicating with the neural core.", persona }]);
         } finally {
+            setThinkingMessage('');
             setIsLoading(false);
         }
     };
@@ -163,7 +179,7 @@ export function ChatView() {
                             </div>
                         ))}
 
-                        {isLoading && (
+                        {isLoading && thinkingMessage && (
                             <div className="flex w-full gap-4 justify-start">
                                 <div className={cn(
                                     "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
@@ -173,10 +189,14 @@ export function ChatView() {
                                 )}>
                                     <Bot className="w-4 h-4" />
                                 </div>
-                                <div className="bg-white/5 rounded-lg p-4 border border-white/10 flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-current rounded-full animate-bounce"></span>
+                                <div className="relative overflow-hidden bg-gradient-to-r from-white/5 via-white/10 to-white/5 rounded-lg p-4 border border-white/15 min-w-[280px]">
+                                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                                    <div className="relative flex items-center gap-2 text-xs tracking-wide text-muted-foreground font-mono uppercase">
+                                        <BrainCircuit className="w-3.5 h-3.5 text-primary animate-pulse" />
+                                        <span>Thinking</span>
+                                        <Zap className="w-3 h-3 text-indigo animate-pulse" />
+                                    </div>
+                                    <p className="relative mt-2 text-sm text-gray-200">{thinkingMessage}</p>
                                 </div>
                             </div>
                         )}

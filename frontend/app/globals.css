@@ -68,6 +68,12 @@
 }
 
 @layer utilities {
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   .glass-panel {
     @apply bg-card/60 backdrop-blur-2xl border border-white/10 shadow-xl;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
