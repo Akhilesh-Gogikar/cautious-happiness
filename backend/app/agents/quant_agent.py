@@ -1,5 +1,6 @@
 import logging
 import json
+from types import SimpleNamespace
 from app.domain.intelligence.service import IntelligenceService
 from app.agents.news_agent import NewsAgent
 from app.connectors.polymarket import PolymarketConnector
@@ -68,19 +69,13 @@ class QuantAgent:
         Generate the trade recommendations based on this data.
         """
 
-        # 4. Invoke LLM via `lfm-thinking` using existing `intelligence_service` tools.
-        # Using a raw format response or asking intelligence_service for a base query
-        # We will directly query the LLM API using the engine or the `chat_with_model` logic 
-        # For simplicity, we create a raw chat request to the LLM backend
-        from app.models import ChatRequest, Message
-        req = ChatRequest(
+        # 4. Invoke LLM via `lfm-thinking` using the message-aware IntelligenceService path.
+        req = SimpleNamespace(
             messages=[
-                Message(role="system", content=system_prompt),
-                Message(role="user", content=user_prompt)
+                SimpleNamespace(role="system", content=system_prompt),
+                SimpleNamespace(role="user", content=user_prompt)
             ],
-            model="lfm-thinking",
-            temperature=0.2,
-            stream=False
+            model="lfm-thinking"
         )
         
         try:
