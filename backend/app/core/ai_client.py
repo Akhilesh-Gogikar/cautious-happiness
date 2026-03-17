@@ -3,7 +3,7 @@ import httpx
 import json
 import logging
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import AsyncIterator, Dict
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("ai_client")
@@ -15,6 +15,12 @@ class AIProvider(ABC):
     @abstractmethod
     async def generate(self, prompt: str, model: str, **kwargs) -> str:
         pass
+
+    async def stream_generate(self, prompt: str, model: str, **kwargs) -> AsyncIterator[str]:
+        """Default streaming fallback for providers that only support full responses."""
+        text = await self.generate(prompt, model, **kwargs)
+        if text:
+            yield text
 
     async def _safe_request(self, method: str, url: str, **kwargs) -> httpx.Response:
         """Helper to run requests with retries."""
@@ -51,6 +57,25 @@ class OllamaProvider(AIProvider):
             timeout=120.0
         )
         return response.json().get("response", "")
+
+    async def stream_generate(self, prompt: str, model: str, **kwargs) -> AsyncIterator[str]:
+        async with self.client.stream(
+            "POST",
+            f"{self.host}/api/generate",
+            json={"model": model, "prompt": prompt, "stream": True, **kwargs},
+            timeout=120.0,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                token = data.get("response", "")
+                if token:
+                    yield token
 
 class GeminiProvider(AIProvider):
     def __init__(self, client: httpx.AsyncClient, api_key: str):
@@ -96,6 +121,35 @@ class LlamaCppProvider(AIProvider):
         )
         return response.json().get("content", "").strip()
 
+    async def stream_generate(self, prompt: str, model: str = "lfm-thinking", **kwargs) -> AsyncIterator[str]:
+        payload = {
+            "prompt": prompt,
+            "n_predict": kwargs.get("n_predict", 2048),
+            "temperature": kwargs.get("temperature", 0.2),
+            "stream": True,
+        }
+        if "json_schema" in kwargs:
+            payload["json_schema"] = kwargs["json_schema"]
+
+        async with self.client.stream(
+            "POST",
+            f"{self.host}/completion",
+            json=payload,
+            timeout=300.0,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                token = data.get("content") or data.get("token") or ""
+                if token:
+                    yield token
+
 class AIClient:
     def __init__(self):
         # Persistent client for connection pooling
@@ -133,5 +187,15 @@ class AIClient:
         except json.JSONDecodeError:
             logger.error(f"Failed to decode JSON from AI response: {raw_text}")
             raise
+
+    async def stream_generate(self, prompt: str, provider: str = "llama-cpp", model: str = "lfm-thinking", **kwargs) -> AsyncIterator[str]:
+        p = self.providers.get(provider)
+        if not p:
+            p = self.providers.get("llama-cpp")
+            logger.warning(f"Provider {provider} not found. Falling back to llama-cpp")
+
+        async for chunk in p.stream_generate(prompt, model, **kwargs):
+            if chunk:
+                yield chunk
 
 ai_client = AIClient()

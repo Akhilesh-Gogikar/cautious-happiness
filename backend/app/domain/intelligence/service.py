@@ -1,7 +1,7 @@
 import os
 import asyncio
 from duckduckgo_search import DDGS
-from typing import List, Tuple, Optional
+from typing import AsyncIterator, List, Tuple
 from app.models import Source
 from app.core.ai_client import ai_client
 
@@ -99,7 +99,15 @@ class IntelligenceService:
         
         prompt = self._build_chat_prompt(req)
         
-        return await ai_client.generate(prompt, provider=provider, model=model)
+        # Always consume streaming from provider; aggregate for non-stream callers.
+        chunks: List[str] = []
+        async for chunk in self.ai_stream(prompt, provider=provider, model=model):
+            chunks.append(chunk)
+        return "".join(chunks).strip()
+
+    async def ai_stream(self, prompt: str, provider: str, model: str) -> AsyncIterator[str]:
+        async for chunk in ai_client.stream_generate(prompt, provider=provider, model=model):
+            yield chunk
 
     def _build_chat_prompt(self, req: "ChatRequest") -> str:
         """Build a prompt from either OpenAI-style messages or legacy question/history fields."""
