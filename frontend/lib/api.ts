@@ -49,6 +49,22 @@ export interface ChatContext {
     client_state?: any;
 }
 
+export interface SystemHealth {
+    status: 'ok' | 'degraded';
+    details: {
+        ollama: boolean;
+        redis: boolean;
+        database: boolean;
+        gemini_configured: boolean;
+    };
+}
+
+export async function fetchSystemHealth(): Promise<SystemHealth> {
+    const res = await fetch(`${API_URL}/health`);
+    if (!res.ok) throw new Error('Failed to fetch system health');
+    return res.json();
+}
+
 export async function chatWithModel(payload: {
     question: string;
     history?: ChatMessage[];

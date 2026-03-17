@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, Bot, User, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { chatWithModel } from '@/lib/api';
+import { getSelectedModel } from '@/lib/llm-config';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -29,6 +30,7 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [activeModel, setActiveModel] = useState('lfm-thinking');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Initial context message
@@ -49,6 +51,10 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
         }
     }, [messages]);
 
+    useEffect(() => {
+        setActiveModel(getSelectedModel());
+    }, []);
+
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
 
@@ -65,6 +71,7 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
                     content: m.content,
                     timestamp: Date.now() / 1000
                 })),
+                model: activeModel,
                 context: {
                     route_path: "/chat",
                     client_state: {
@@ -92,7 +99,7 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
                 <CardHeader className="flex flex-row items-center justify-between py-3 px-4 border-b border-white/10 bg-white/5">
                     <div className="flex items-center gap-2">
                         <Bot className="w-4 h-4 text-neon-blue animate-pulse" />
-                        <CardTitle className="text-xs font-black tracking-[0.2em] uppercase text-glow-neon">ORACLE_CHAT</CardTitle>
+                        <CardTitle className="text-xs font-black tracking-[0.2em] uppercase text-glow-neon">ORACLE_CHAT · {activeModel}</CardTitle>
                     </div>
                     <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-white/10" onClick={onClose}>
                         <X className="w-4 h-4" />

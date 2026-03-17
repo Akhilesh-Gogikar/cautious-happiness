@@ -15,10 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
+import { DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER, DEFAULT_LLAMA_CPP_URL } from "@/lib/llm-config";
 import { useRouter } from "next/navigation";
 
 export function SettingsModal() {
-    const [model, setModel] = useState("lfm-thinking");
+    const [model, setModel] = useState(DEFAULT_LLM_MODEL);
+    const [llamaCppUrl, setLlamaCppUrl] = useState(DEFAULT_LLAMA_CPP_URL);
     const [geminiKey, setGeminiKey] = useState("");
     const [alpacaKey, setAlpacaKey] = useState("");
     const [alpacaSecret, setAlpacaSecret] = useState("");
@@ -32,13 +34,16 @@ export function SettingsModal() {
         if (storedAlpacaSecret) setAlpacaSecret(storedAlpacaSecret);
 
         const storedModel = localStorage.getItem("POLY_MODEL");
+        const storedLlamaCppUrl = localStorage.getItem("LLAMA_CPP_URL");
         const storedGeminiKey = localStorage.getItem("POLY_GEMINI_KEY");
         if (storedModel) setModel(storedModel);
+        if (storedLlamaCppUrl) setLlamaCppUrl(storedLlamaCppUrl);
         if (storedGeminiKey) setGeminiKey(storedGeminiKey);
     }, []);
 
     const handleSave = () => {
-        localStorage.setItem("POLY_MODEL", model);
+        localStorage.setItem("POLY_MODEL", model || DEFAULT_LLM_MODEL);
+        localStorage.setItem("LLAMA_CPP_URL", llamaCppUrl || DEFAULT_LLAMA_CPP_URL);
         if (geminiKey) localStorage.setItem("POLY_GEMINI_KEY", geminiKey);
 
         if (alpacaKey) localStorage.setItem("ALPACA_API_KEY", alpacaKey);
@@ -119,7 +124,7 @@ export function SettingsModal() {
 
                         <div className="space-y-2">
                             <Label htmlFor="model" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Inference Model
+                                Inference Model (default llama.cpp)
                             </Label>
                             <Input
                                 id="model"
@@ -128,6 +133,21 @@ export function SettingsModal() {
                                 className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="llama-cpp-url" className="text-xs font-bold text-white/50 uppercase tracking-wider">
+                                llama.cpp Service URL
+                            </Label>
+                            <Input
+                                id="llama-cpp-url"
+                                value={llamaCppUrl}
+                                onChange={(e) => setLlamaCppUrl(e.target.value)}
+                                placeholder="http://localhost:8080"
+                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
+                            />
+                            <p className="text-[10px] text-muted-foreground">Provider: <span className="text-white">{DEFAULT_LLM_PROVIDER}</span> (fallback for all local model requests)</p>
+                        </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="gemini" className="text-xs font-bold text-white/50 uppercase tracking-wider">
                                 Gemini API Key (Critic)

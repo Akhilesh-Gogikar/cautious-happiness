@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Send, Bot, User, Sparkles, ShieldCheck, BrainCircuit, Zap } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { chatWithModelStream } from '@/lib/api';
+import { getSelectedModel, DEFAULT_LLM_PROVIDER } from '@/lib/llm-config';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -26,6 +27,7 @@ export function ChatView() {
     const [isLoading, setIsLoading] = useState(false);
     const [thinkingMessage, setThinkingMessage] = useState('');
     const [persona, setPersona] = useState<'Analyst' | 'RiskManager'>('Analyst');
+    const [activeModel, setActiveModel] = useState('lfm-thinking');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -33,6 +35,10 @@ export function ChatView() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    useEffect(() => {
+        setActiveModel(getSelectedModel());
+    }, []);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
@@ -47,6 +53,7 @@ export function ChatView() {
 
             await chatWithModelStream({
                 question: userMsg,
+                model: activeModel,
                 history: messages.map(m => ({
                     role: m.role,
                     content: m.content,
@@ -140,7 +147,7 @@ export function ChatView() {
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-muted-foreground">
-                                model: <span className="text-white">LFM-Thinking (Local)</span>
+                                provider: <span className="text-white">{DEFAULT_LLM_PROVIDER}</span> · model: <span className="text-white">{activeModel}</span>
                             </div>
                         </div>
                     </CardHeader>
