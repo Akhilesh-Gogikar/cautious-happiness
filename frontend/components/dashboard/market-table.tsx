@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchMarkets, predictMarket, getTaskStatus, API_URL } from '@/lib/api';
 import { toast } from "sonner";
 import { ChatPanel } from './chat-panel';
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Terminal, BarChart2, Activity, PlayCircle, Lock, Zap, TrendingUp, ShieldCheck, MessageSquare, Globe, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Terminal, BarChart2, Activity, PlayCircle, Lock, Zap, TrendingUp, ShieldCheck, MessageSquare, Globe, AlertTriangle, RefreshCcw, Search } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 // Mock data for Macro Views and Signals
@@ -42,18 +42,53 @@ export function MarketTable() {
     const [predicting, setPredicting] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [filter, setFilter] = useState('ALL');
+    const [searchQuery, setSearchQuery] = useState('');
     const [statusMessage, setStatusMessage] = useState('Initializing...');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchMarkets().then(data => {
+    const loadMarkets = useCallback(async (isManualRefresh = false) => {
+        if (isManualRefresh) {
+            setIsRefreshing(true);
+        } else {
+            setLoading(true);
+        }
+
+        try {
+            const data = await fetchMarkets();
             setMarkets(data);
+            setLoadError(null);
+            if (isManualRefresh) {
+                toast.success('Watchlist refreshed', { description: `${data.length} markets synchronized.` });
+            }
+        } catch {
+            const message = 'Unable to load markets. Verify backend connectivity.';
+            setLoadError(message);
+            toast.error('Market feed unavailable', { description: message });
+        } finally {
             setLoading(false);
-        });
+            setIsRefreshing(false);
+        }
     }, []);
 
-    const filteredMarkets = filter === 'ALL'
-        ? markets
-        : markets.filter(m => m.category.toUpperCase().includes(filter));
+    useEffect(() => {
+        loadMarkets();
+    }, [loadMarkets]);
+
+    const filteredMarkets = useMemo(() => {
+        const categoryFiltered = filter === 'ALL'
+            ? markets
+            : markets.filter(m => m.category.toUpperCase().includes(filter));
+
+        if (!searchQuery.trim()) {
+            return categoryFiltered;
+        }
+
+        const normalizedQuery = searchQuery.toLowerCase();
+        return categoryFiltered.filter((market) =>
+            market.question.toLowerCase().includes(normalizedQuery)
+        );
+    }, [filter, markets, searchQuery]);
 
     // Sort by volume descending for watchlist
     const sortedMarkets = [...filteredMarkets].sort((a, b) => b.volume_24h - a.volume_24h);
@@ -366,6 +401,28 @@ export function MarketTable() {
                                 </button>
                             ))}
                         </div>
+                        <div className="w-full flex items-center gap-2 mt-1">
+                            <div className="relative flex-1">
+                                <Search className="w-3 h-3 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="Search assets..."
+                                    className="w-full h-8 pl-8 pr-2 bg-black/30 border border-white/10 rounded text-[10px] font-mono text-white placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-white/10 bg-black/30 hover:bg-white/10"
+                                onClick={() => loadMarkets(true)}
+                                disabled={isRefreshing}
+                                aria-label="Refresh watchlist"
+                            >
+                                <RefreshCcw className={cn('w-3 h-3', isRefreshing && 'animate-spin')} />
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0 flex-1 overflow-auto custom-scrollbar">
                         <Table>
@@ -377,6 +434,20 @@ export function MarketTable() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
+                                {loadError && (
+                                    <TableRow className="border-white/5 hover:bg-transparent">
+                                        <TableCell colSpan={3} className="py-6 px-4 text-center text-[10px] font-mono text-red-300">
+                                            {loadError}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {!loadError && sortedMarkets.length === 0 && (
+                                    <TableRow className="border-white/5 hover:bg-transparent">
+                                        <TableCell colSpan={3} className="py-6 px-4 text-center text-[10px] font-mono text-muted-foreground">
+                                            No markets match the current filters.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                                 {sortedMarkets.map((m, idx) => (
                                     <TableRow
                                         key={m.id}
