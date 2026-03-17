@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Dict, List, Optional
+import asyncio
 import csv
 import io
 import logging
@@ -106,15 +107,20 @@ async def get_asset_prices() -> Dict[str, float]:
         except Exception as exc:
             logger.warning("Yahoo quote fetch failed; falling back per symbol: %s", exc)
 
-        for asset in ASSET_CATALOG:
-            if asset["symbol"] in prices:
+        missing_assets = [asset for asset in ASSET_CATALOG if asset["symbol"] not in prices]
+        stooq_tasks = [
+            _fetch_stooq_price(client, asset["stooq"])
+            for asset in missing_assets
+        ]
+        stooq_results = await asyncio.gather(*stooq_tasks, return_exceptions=True)
+
+        for asset, stooq_result in zip(missing_assets, stooq_results):
+            if isinstance(stooq_result, Exception):
+                logger.warning("Stooq quote fetch failed for %s: %s", asset["symbol"], stooq_result)
                 continue
-            try:
-                stooq_price = await _fetch_stooq_price(client, asset["stooq"])
-                if stooq_price is not None:
-                    prices[asset["symbol"]] = stooq_price
-            except Exception as exc:
-                logger.warning("Stooq quote fetch failed for %s: %s", asset["symbol"], exc)
+
+            if stooq_result is not None:
+                prices[asset["symbol"]] = stooq_result
 
     if len(prices) < len(ASSET_CATALOG):
         synthetic_prices = _generate_synthetic_prices()
