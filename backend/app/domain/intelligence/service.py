@@ -97,13 +97,37 @@ class IntelligenceService:
         elif os.getenv("OLLAMA_HOST") and model != "lfm-thinking":
             provider = "ollama"
         
-        # Construct primitive history-aware prompt if history exists
-        prompt = ""
-        if hasattr(req, 'history') and req.history:
-            for msg in req.history[-5:]: # Use last 5 for context
-                prompt += f"{msg.role.upper()}: {msg.content}\n"
-        
-        prompt += f"USER: {req.question}\nASSISTANT:"
+        prompt = self._build_chat_prompt(req)
         
         return await ai_client.generate(prompt, provider=provider, model=model)
 
+    def _build_chat_prompt(self, req: "ChatRequest") -> str:
+        """Build a prompt from either OpenAI-style messages or legacy question/history fields."""
+        prompt_lines: List[str] = []
+
+        # Support OpenAI-style message arrays when present.
+        messages = getattr(req, "messages", None)
+        if messages:
+            for msg in messages:
+                role = getattr(msg, "role", "user").upper()
+                content = getattr(msg, "content", "")
+                if content:
+                    prompt_lines.append(f"{role}: {content}")
+
+            # Ensure generation is anchored to an assistant continuation.
+            if prompt_lines and not prompt_lines[-1].startswith("ASSISTANT:"):
+                prompt_lines.append("ASSISTANT:")
+            return "\n".join(prompt_lines)
+
+        # Legacy question/history support used by chat endpoint.
+        history = getattr(req, "history", None)
+        if history:
+            for msg in history[-5:]:
+                prompt_lines.append(f"{msg.role.upper()}: {msg.content}")
+
+        question = getattr(req, "question", "")
+        if question:
+            prompt_lines.append(f"USER: {question}")
+
+        prompt_lines.append("ASSISTANT:")
+        return "\n".join(prompt_lines)
