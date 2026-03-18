@@ -56,7 +56,9 @@ Always use the provided script which handles container orchestration.
 - **Rebuild Container**: `docker compose up -d --build <service_name>`
 
 ## 5. Related Documentation
-- [Architecture Deep Dive](file:///root/cautious-happiness/docs/ARCHITECTURE.md) *(Note: check if moved)*
-- [Style Guide](file:///root/cautious-happiness/docs/style_guide.md)
-- [Backend Documentation](file:///root/cautious-happiness/docs/backend.md)
-- [Frontend Documentation](file:///root/cautious-happiness/docs/frontend.md)
+- [Architecture Deep Dive](ARCHITECTURE.md)
+- [Style Guide](style_guide.md)
+- [Backend Documentation](backend.md)
+- [Frontend Documentation](frontend.md)
+
+> Runtime note: the default local inference path in this repo is `text-gen-cpp` with the `lfm-thinking` model. Treat older references to OpenForecaster / Ollama as historical unless the code or environment you are editing explicitly opts into them.
