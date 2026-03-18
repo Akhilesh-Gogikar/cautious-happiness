@@ -14,7 +14,7 @@ Ensure consistent usage of these terms:
 | Term | Definition |
 |------|------------|
 | **Alpha Insights Platform** | The overall product name (formerly Hedge Fund Dashboard). |
-| **OpenForecaster** | The specific AI model used for predictions. |
+| **OpenForecaster** | Legacy product-facing name for the local forecasting engine; when documenting the current compose runtime, explicitly map it to `text-gen-cpp` + `lfm-thinking` if relevant. |
 | **Critic** | The verification agent that cross-references facts. |
 | **Intelligence Mirror** | The competitive intelligence feature. |
 | **Polymarket** | The prediction market platform integrated. |
@@ -28,12 +28,13 @@ Ensure consistent usage of these terms:
 - Use `###` H3 for subsections (Sentence Case).
 
 ### Code Blocks
-- **Mandatory**: Always specify the language for syntax highlighting (e.g., \`\`\`bash, \`\`\`python).
+- **Mandatory**: Always specify the language for syntax highlighting (e.g., ```bash, ```python).
 - **Comments**: Include comments in code snippets where helpful.
 
 ### Links
 - Use descriptive link text. Avoid "click here".
 - Format: `[Link Text](path/to/file)` or `[Link Text](https://url.com)`.
+- When linking to internal service docs from root-facing docs, surface both `docs/backend.md` and `docs/frontend.md` explicitly so contributors do not have to discover them indirectly.
 
 ### Lists
 - Use `-` for unordered lists.
@@ -58,11 +59,12 @@ def verify_claim(claim: str) -> bool:
 - Use `graph TD` (Top-Down) for most flows.
 - Keep node labels concise.
 - Use subgraphs to group logical components.
+- Keep runtime labels aligned with the current checked-in stack; if the compose file uses `text-gen-cpp`, do not label the node as Ollama unless you are explicitly describing an alternate deployment.
 
 ## 5. File Structure
-- `README.md`: High-level overview, quick start, installation.
-- `docs/AGENTS.md`: Instruction manual for AI Agents.
+- `README.md`: High-level overview, quick start, installation, and the visible documentation index.
+- `docs/AGENTS.md`: Instruction manual for AI agents.
 - `docs/ARCHITECTURE.md`: Deep dive into system internals.
-- `docs/backend.md`: Specifics for FastAPI service.
-- `docs/frontend.md`: Specifics for Next.js service.
+- `docs/backend.md`: Specifics for the FastAPI service and model routing.
+- `docs/frontend.md`: Specifics for the Next.js service.
 - `docs/style_guide.md`: This file.

@@ -11,7 +11,7 @@ The Frontend is a specialized "Data Noir" terminal designed for high-density inf
 
 ## 2. Design System: "Data Noir"
 > [!NOTE]
-> See [Style Guide](../style_guide.md) for full tokens.
+> See [Style Guide](style_guide.md) for full tokens.
 
 - **Background**: `#0a0a0a` (Near Black)
 - **Surface**: `#1a1a1a` (Dark Grey)
