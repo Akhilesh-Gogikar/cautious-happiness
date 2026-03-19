@@ -27,16 +27,34 @@ from app.routers.tools import router as tools_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("alpha_insights")
 
+
 class JsonFormatter(logging.Formatter):
+    RESERVED_LOG_RECORD_FIELDS = {
+        "args", "asctime", "created", "exc_info", "exc_text", "filename", "funcName",
+        "levelname", "levelno", "lineno", "module", "msecs", "message", "msg", "name",
+        "pathname", "process", "processName", "relativeCreated", "stack_info", "thread",
+        "threadName", "taskName",
+    }
+
     def format(self, record):
         log_obj = {
             "timestamp": self.formatTime(record),
             "level": record.levelname,
             "message": record.getMessage(),
             "module": record.module,
-            "request_id": getattr(record, "request_id", "none")
+            "request_id": getattr(record, "request_id", "none"),
         }
+        extras = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in self.RESERVED_LOG_RECORD_FIELDS and key != "request_id"
+        }
+        if extras:
+            log_obj["context"] = extras
+        if record.exc_info:
+            log_obj["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_obj)
+
 
 handler = logging.StreamHandler()
 handler.setFormatter(JsonFormatter())
@@ -62,7 +80,7 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.time() - start_time
     logger.info(
         f"Request trace: {request.method} {request.url.path} handled in {process_time:.4f}s",
-        extra={"request_id": request.headers.get("X-Request-ID", "internal")}
+        extra={"request_id": request.headers.get("X-Request-ID", "internal")},
     )
     return response
 
@@ -72,7 +90,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Critical System Error: {str(exc)}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"error": True, "message": "Internal Server Error", "detail": str(exc)}
+        content={"error": True, "message": "Internal Server Error", "detail": str(exc)},
     )
 
 # Include Routers
@@ -100,7 +118,7 @@ async def websocket_lifecycle(websocket: WebSocket, task_id: str):
     pubsub = redis_client.pubsub()
     channel = f"task_events:{task_id}"
     await pubsub.subscribe(channel)
-    
+
     try:
         if task_id.startswith("cached_"):
             await websocket.send_json({"event": "status", "message": "Analysis complete (Cached)"})
@@ -111,21 +129,21 @@ async def websocket_lifecycle(websocket: WebSocket, task_id: str):
         while True:
             message = pubsub.get_message(ignore_subscribe_messages=True)
             if message:
-                data = json.loads(message['data'])
+                data = json.loads(message["data"])
                 await websocket.send_json(data)
                 if data.get("event") == "complete":
                     break
-            
+
             await asyncio.sleep(0.1)
             if result.ready():
                 await websocket.send_json({"event": "complete", "message": "Task finished."})
                 break
-                
+
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected: {task_id}")
     finally:
         await pubsub.unsubscribe(channel)
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
