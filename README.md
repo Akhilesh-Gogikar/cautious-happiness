@@ -66,6 +66,24 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 - **Terminal Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
+## Current Maturity Snapshot
+
+The repository already demonstrates a credible control plane: the core FastAPI/Next.js stack exists, the forecasting + critique pipeline is wired, and the product direction is documented in the backlog and vision artifacts. At the same time, several moat-defining capabilities are still explicitly tracked as unfinished work, so the platform should be presented as a strong foundation rather than a fully locked-down execution engine.
+
+### What is already working
+- **Control plane foundations**: containerized backend/frontend architecture, local-model orchestration, and prediction workflow scaffolding.
+- **Verification pattern**: a dedicated Critic layer exists as a first-class concept in both the architecture and codebase.
+- **Product discipline**: roadmap, backlog, and strategic artifacts already identify the highest-value next steps.
+
+### What still needs to be locked down
+- **Critic hardening**: verification reliability and structured output enforcement remain active work items.
+- **Structured parsing**: the roadmap still calls for replacing brittle parsing paths with schema-driven extraction.
+- **Live frontend state sync**: portions of the UI still need to move from mock or isolated state to live backend-backed synchronization.
+- **Async orchestration refactor**: concurrency/orchestration improvements are still part of the implementation roadmap.
+- **Unified intelligence domain cleanup**: intelligence logic consolidation remains a key maintainability and moat-protection task.
+
+This framing is intentional: the repo shows strong direction and meaningful implementation progress, while the backlog honestly documents the remaining engineering needed to fully harden the defensibility-critical mechanics.
+
 ## Documentation Index
 
 - **Start Here**: [Agent Instructions](docs/AGENTS.md)
