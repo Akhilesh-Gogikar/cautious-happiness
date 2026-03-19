@@ -34,6 +34,9 @@ The active to-do list for the current session or sprint. Items here are committe
 ### VISION.md
 The long-term strategic vision for the product. Backlog items should align with the vision.
 
+### YC_PRODUCT_DEVELOPMENT_PLAN.md
+The execution-oriented product plan for converting the current prototype into a pilotable wedge. Use it when prioritizing roadmap sequencing, pilot readiness, and operating cadence.
+
 ## Roles and Responsibilities
 
 -   **User**: Provides prompts, feedback, and strategic direction.

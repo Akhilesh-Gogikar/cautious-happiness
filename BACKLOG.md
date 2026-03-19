@@ -24,6 +24,7 @@
 | **INFRA-005** | Todo | High | [INFRA-SMART-FALLBACK] Neural Resilience Layer | Implement tier-based model fallback system (Local High -> Local Fast -> Cloud). |
 | **MGMT-001** | In Progress | High | Product Management Framework | Setup framework docs and populate backlog. (From existing BACKLOG.md) |
 | **MGMT-002** | Todo | High | Narrative Honesty on Product Maturity | Reflect in external-facing docs that the platform has a strong control plane, but moat-critical hardening remains unfinished across Critic reliability, structured parsing, live state sync, orchestration, and intelligence-domain cleanup. |
+| **MGMT-003** | Done | High | YC-Style Product Development Plan | Added a dedicated execution plan document covering ICP, MVP scope, metrics, roadmap, and the first 90 days of pilot preparation. |
 | INFRA-006 | Done | High | Shared Persistent HTTPX Client | Refactor IntelligenceService to use a singleton AsyncClient for connection pooling. |
 | INFRA-007 | Done | High | Speculative Pipeline Execution | Enable parallel source auditing and forecast generation in IntelligenceMirrorEngine. |
 | DEBT-005 | Done | Medium | Unified Schema Serialization | Automate Pydantic model instantiation from LLM JSON to eliminate manual unpacking boilerplate. |
