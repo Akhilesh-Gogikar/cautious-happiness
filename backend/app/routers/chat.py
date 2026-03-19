@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from app.models import User, ChatRequest, ChatResponse
 from app.core.auth import get_current_active_user
 from app.services.chat import ChatService
-from app.engine import IntelligenceMirrorEngine
+from app.intelligence.application.engine import IntelligenceMirrorEngine
 
 router = APIRouter(
     prefix="/chat",

@@ -1,7 +1,7 @@
 from celery import Celery
 import os
 import asyncio
-from app.engine import IntelligenceMirrorEngine
+from app.intelligence.application.engine import IntelligenceMirrorEngine
 
 # Initialize Celery
 # ... (rest of imports/init)

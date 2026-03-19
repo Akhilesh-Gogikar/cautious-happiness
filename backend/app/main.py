@@ -16,9 +16,9 @@ from app.routers.markets import router as markets_router
 from app.routers.prediction import router as prediction_router
 from app.routers.trade import router as trade_router
 from app.routers.chat import router as chat_router
-from app.domain.intelligence import router as intelligence_router
+from app.intelligence.api.news import router as intelligence_router
 from app.strategy import router as strategy_router
-from app.mirror.router import router as mirror_router
+from app.intelligence.api.mirror import router as mirror_router
 from app.routers.scanner import router as scanner_router
 from app.routers.demo import router as demo_router
 from app.routers.tools import router as tools_router
