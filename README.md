@@ -103,6 +103,7 @@ This framing is intentional: the repo shows strong direction and meaningful impl
 - **Frontend Service**: [Frontend Docs](docs/frontend.md)
 - **Design System**: [Style Guide](docs/style_guide.md)
 - **Product Framing**: [Product Framework](docs/PRODUCT_FRAMEWORK.md)
+- **Execution Plan**: [YC-Style Product Development Plan](docs/YC_PRODUCT_DEVELOPMENT_PLAN.md)
 - **Strategic Vision**: [Vision & Roadmap](vision.md)
 - **Legal/IP**: [Patent Documentation](Patent.md)
 
