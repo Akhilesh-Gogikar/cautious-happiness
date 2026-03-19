@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.models import ChatRequest, ChatResponse
 from app.db.models import ChatMessage
 from app.db.session import get_db
-from app.engine import IntelligenceMirrorEngine
+from app.intelligence.application.engine import IntelligenceMirrorEngine
 
 class ChatService:
     def __init__(self, engine: IntelligenceMirrorEngine):

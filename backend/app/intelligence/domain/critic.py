@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List
 
 from app.core.ai_client import ai_client
@@ -42,6 +44,3 @@ OUTPUT SCHEMA (STRICT JSON):
                 score=initial_prob,
                 risk_factors=[f"System Error: {exc}"],
             )
-
-
-__all__ = ["CriticService", "ai_client"]
