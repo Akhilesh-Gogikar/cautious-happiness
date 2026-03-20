@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from typing import List
 
-import httpx
-
-from app.intelligence.infrastructure.llm import extract_json_object
+from app.intelligence.infrastructure.llm import extract_json_object, generate_text
 from app.intelligence.infrastructure.search import DuckDuckGoSearchGateway
 from app.mirror.models import AnalysisResult, Competitor, Source
 
 
 class MirrorService:
-    def __init__(self, search_gateway: DuckDuckGoSearchGateway | None = None):
-        self.ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+    def __init__(self, search_gateway: DuckDuckGoSearchGateway | None = None, model: str = "lfm-thinking"):
+        self.model = model
         self.search_gateway = search_gateway or DuckDuckGoSearchGateway()
         self.competitors = [
             Competitor(
@@ -45,6 +42,8 @@ class MirrorService:
             crowd_conviction=conviction,
             summary=summary,
             key_phrases=phrases,
+            sources=sources,
+            analysis_status="completed" if sources else "no_sources",
             timestamp=datetime.now(),
         )
 
@@ -89,36 +88,17 @@ class MirrorService:
         [/INST]
         """
 
-        sentiment = 0.0
-        conviction = 0.0
-        summary = "Analysis failed."
-        phrases: list[str] = []
-
-        async with httpx.AsyncClient() as client:
-            try:
-                payload = {
-                    "prompt": prompt,
-                    "n_predict": 1024,
-                    "stream": False,
-                    "temperature": 0.1,
-                }
-                if os.getenv("OLLAMA_MODEL"):
-                    payload["model"] = os.getenv("OLLAMA_MODEL")
-
-                response = await client.post(f"{self.ollama_host}/completion", json=payload, timeout=60.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    response_text = data.get("response", "{}") if "response" in data else data.get("content", "{}")
-                    json_payload = extract_json_object(response_text)
-                    if json_payload:
-                        parsed = json.loads(json_payload)
-                        sentiment = float(parsed.get("sentiment_score", 0.0))
-                        conviction = float(parsed.get("crowd_conviction", 0.0))
-                        summary = parsed.get("summary", "No summary.")
-                        phrases = parsed.get("key_phrases", [])
-                    else:
-                        summary = response_text[:200]
-            except Exception:
-                pass
-
-        return sentiment, conviction, summary, phrases
+        try:
+            response_text = await generate_text(prompt, self.model)
+            json_payload = extract_json_object(response_text)
+            if json_payload:
+                parsed = json.loads(json_payload)
+                return (
+                    float(parsed.get("sentiment_score", 0.0)),
+                    float(parsed.get("crowd_conviction", 0.0)),
+                    parsed.get("summary", "No summary."),
+                    parsed.get("key_phrases", []),
+                )
+            return 0.0, 0.0, response_text[:200] or "Analysis failed.", []
+        except Exception:
+            return 0.0, 0.0, "Analysis failed.", []
