@@ -13,7 +13,7 @@ from app.health import get_system_health
 # Modular Routers
 from app.routers.auth import router as auth_router
 from app.routers.markets import router as markets_router
-from app.routers.prediction import router as prediction_router
+from app.routers.prediction import compat_router as prediction_compat_router, router as prediction_router
 from app.routers.trade import router as trade_router
 from app.routers.chat import router as chat_router
 from app.intelligence.api.news import router as intelligence_router
@@ -97,6 +97,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth_router)
 app.include_router(markets_router)
 app.include_router(prediction_router)
+app.include_router(prediction_compat_router)
 app.include_router(trade_router)
 app.include_router(chat_router)
 app.include_router(intelligence_router)

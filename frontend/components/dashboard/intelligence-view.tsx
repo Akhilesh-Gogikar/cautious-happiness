@@ -1,28 +1,53 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import { ShieldCheck, Zap, Activity, AlertTriangle, Globe } from 'lucide-react';
+
 import { CompetitorCard } from '@/components/intelligence/CompetitorCard';
+import { DecisionProtocol } from '@/components/intelligence/DecisionProtocol';
 import { SourceFeed } from '@/components/intelligence/SourceFeed';
 import { SentimentGauge } from '@/components/intelligence/SentimentGauge';
-import { Competitor, AnalysisResult, Source } from '@/components/intelligence/types';
-import { ShieldCheck, Zap, Activity, AlertTriangle, Globe } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DecisionProtocol } from '@/components/intelligence/DecisionProtocol';
+import type { Competitor, AnalysisResult, Source } from '@/components/intelligence/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { analyzeMirrorTarget, fetchMirrorCompetitors } from '@/lib/api';
 
 const MOCK_COMPETITORS: Competitor[] = [
     {
-        id: "comp_citadel_commodity",
-        name: "Citadel (Commodities)",
-        description: "High-frequency algorithmic trading desk.",
-        tracked_urls: ["reuters.com", "bloomberg.com"],
-        last_active: new Date().toISOString()
+        id: 'comp_citadel_commodity',
+        name: 'Citadel (Commodities)',
+        description: 'High-frequency algorithmic trading desk.',
+        tracked_urls: ['reuters.com', 'bloomberg.com'],
+        last_active: new Date().toISOString(),
     },
     {
-        id: "comp_glencore_algo",
-        name: "Glencore (Algo Desk)",
-        description: "Physical-backed algorithmic hedging strategies.",
-        tracked_urls: ["platts.com", "argusmedia.com"],
-        last_active: new Date().toISOString()
-    }
+        id: 'comp_glencore_algo',
+        name: 'Glencore (Algo Desk)',
+        description: 'Physical-backed algorithmic hedging strategies.',
+        tracked_urls: ['platts.com', 'argusmedia.com'],
+        last_active: new Date().toISOString(),
+    },
 ];
+
+const FALLBACK_SOURCES: Record<string, Source[]> = {
+    comp_citadel_commodity: [
+        {
+            id: 'fallback_1',
+            url: '#',
+            domain: 'reuters.com',
+            title: 'Macro desks rotate into energy-linked momentum signals',
+            snippet: 'Fallback feed used because the mirror endpoint returned no live source bundle.',
+            published_at: new Date().toISOString(),
+        },
+    ],
+    comp_glencore_algo: [
+        {
+            id: 'fallback_2',
+            url: '#',
+            domain: 'argusmedia.com',
+            title: 'Physical hedging desks lean on freight and inventory noise',
+            snippet: 'Fallback feed used because the mirror endpoint returned no live source bundle.',
+            published_at: new Date().toISOString(),
+        },
+    ],
+};
 
 export function IntelligenceView() {
     const [competitors, setCompetitors] = useState<Competitor[]>([]);
@@ -32,20 +57,14 @@ export function IntelligenceView() {
     const [sources, setSources] = useState<Source[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
     useEffect(() => {
-        fetch(`${API_URL}/mirror/competitors`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to fetch competitors");
-                return res.json();
-            })
+        fetchMirrorCompetitors()
             .then(data => setCompetitors(data))
             .catch(err => {
-                console.error("Using Mock Competitors:", err);
+                console.error('Using Mock Competitors:', err);
                 setCompetitors(MOCK_COMPETITORS);
             });
-    }, [API_URL]);
+    }, []);
 
     const handleAnalyze = async (id: string) => {
         setSelectedCompetitor(id);
@@ -55,37 +74,12 @@ export function IntelligenceView() {
         setError(null);
 
         try {
-            const res = await fetch(`${API_URL}/mirror/analyze/${id}`, {
-                method: "POST"
-            });
-            if (!res.ok) throw new Error("Analysis failed");
-
-            const result: AnalysisResult = await res.json();
+            const result = await analyzeMirrorTarget(id);
             setAnalysis(result);
-
-            // Simulation of sources for demo since API doesn't return them yet
-            setSources([
-                {
-                    id: "src_1",
-                    url: "#",
-                    domain: "bloomberg.com",
-                    title: `Algorithmic flow detected for ${id}`,
-                    snippet: result.summary,
-                    published_at: new Date().toISOString()
-                },
-                {
-                    id: "src_2",
-                    url: "#",
-                    domain: "reuters.com",
-                    title: "Market impact analysis",
-                    snippet: "Crowd sentiment suggests high correlation with momentum factors.",
-                    published_at: new Date().toISOString()
-                }
-            ]);
-
-        } catch (error) {
-            console.error(error);
-            setError("CONNECTION_LOST // UNABLE TO MIRROR TARGET");
+            setSources(result.sources.length > 0 ? result.sources : (FALLBACK_SOURCES[id] ?? []));
+        } catch (analysisError) {
+            console.error(analysisError);
+            setError('CONNECTION_LOST // UNABLE TO MIRROR TARGET');
         } finally {
             setIsAnalyzing(false);
         }
@@ -115,26 +109,17 @@ export function IntelligenceView() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-                {/* Left Column: Watchlist (4 cols) */}
                 <div className="lg:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                     <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground mb-2">
                         <ShieldCheck className="w-4 h-4 text-primary" />
                         TARGET_PROTOCOL_LIST
                     </div>
                     {competitors.map(comp => (
-                        <CompetitorCard
-                            key={comp.id}
-                            competitor={comp}
-                            onAnalyze={handleAnalyze}
-                        />
+                        <CompetitorCard key={comp.id} competitor={comp} onAnalyze={handleAnalyze} />
                     ))}
                 </div>
 
-
-                {/* Right Column: Analysis (8 cols) */}
                 <div className="lg:col-span-8 flex flex-col space-y-6 overflow-y-auto pr-2 custom-scrollbar">
-
-                    {/* Top Row: Gauge + Findings + Decision */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="md:col-span-1">
                             {analysis ? (
@@ -167,6 +152,10 @@ export function IntelligenceView() {
                                             <p className="text-sm text-foreground/90 leading-relaxed font-mono">
                                                 {analysis.summary}
                                             </p>
+                                            <div className="flex items-center justify-between gap-4 border-y border-white/5 py-2 text-[10px] font-mono text-muted-foreground">
+                                                <span>STATUS: {analysis.analysis_status.toUpperCase()}</span>
+                                                <span>SOURCES: {sources.length}</span>
+                                            </div>
                                             <div className="flex flex-wrap gap-2">
                                                 {analysis.key_phrases.map((phrase, i) => (
                                                     <span key={i} className="px-2 py-1 rounded-sm bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">
@@ -193,7 +182,7 @@ export function IntelligenceView() {
                             {analysis ? (
                                 <DecisionProtocol
                                     analysis={analysis}
-                                    symbol={selectedCompetitor === "comp_citadel_commodity" ? "WTI" : "BRENT"}
+                                    symbol={selectedCompetitor === 'comp_citadel_commodity' ? 'WTI' : 'BRENT'}
                                 />
                             ) : (
                                 <Card className="h-full bg-black/40 border-dashed border-white/10 flex items-center justify-center min-h-[200px]">
@@ -206,11 +195,13 @@ export function IntelligenceView() {
                         </div>
                     </div>
 
-                    {/* Bottom Row: Source Feed */}
                     <div className="flex-1 min-h-[300px]">
-                        <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground mb-4">
-                            <Globe className="w-4 h-4 text-cyber-blue" />
-                            INTERCEPTED_STREAMS
+                        <div className="flex items-center justify-between gap-2 text-sm font-mono text-muted-foreground mb-4">
+                            <div className="flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-cyber-blue" />
+                                INTERCEPTED_STREAMS
+                            </div>
+                            {analysis && <span className="text-[10px]">LAST UPDATE: {new Date(analysis.timestamp).toLocaleTimeString()}</span>}
                         </div>
                         <SourceFeed sources={sources} />
                     </div>

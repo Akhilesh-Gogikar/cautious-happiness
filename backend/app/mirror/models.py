@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class Source(BaseModel):
     id: str
@@ -10,6 +12,7 @@ class Source(BaseModel):
     snippet: str
     published_at: Optional[datetime] = None
 
+
 class Competitor(BaseModel):
     id: str
     name: str
@@ -17,10 +20,13 @@ class Competitor(BaseModel):
     tracked_urls: List[str]
     last_active: Optional[datetime] = None
 
+
 class AnalysisResult(BaseModel):
-    target_id: str  # Competitor ID or Market ID
-    sentiment_score: float  # -1.0 to 1.0
-    crowd_conviction: float  # 0.0 to 1.0
+    target_id: str
+    sentiment_score: float
+    crowd_conviction: float
     summary: str
     key_phrases: List[str]
-    timestamp: datetime = datetime.now()
+    sources: List[Source] = Field(default_factory=list)
+    analysis_status: str = "completed"
+    timestamp: datetime = Field(default_factory=datetime.now)

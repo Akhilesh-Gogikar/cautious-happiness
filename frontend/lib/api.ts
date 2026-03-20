@@ -25,7 +25,7 @@ export async function fetchMarkets() {
 }
 
 export async function predictMarket(question: string) {
-    return fetchWithRetry(`${API_URL}/predict`, {
+    return fetchWithRetry(`${API_URL}/prediction/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
@@ -33,7 +33,7 @@ export async function predictMarket(question: string) {
 }
 
 export async function getTaskStatus(taskId: string) {
-    const res = await fetch(`${API_URL}/task/${taskId}`);
+    const res = await fetch(`${API_URL}/prediction/task/${taskId}`);
     if (!res.ok) throw new Error('Failed to fetch task status');
     return res.json();
 }
@@ -57,6 +57,46 @@ export interface SystemHealth {
         database: boolean;
         gemini_configured: boolean;
     };
+}
+
+export interface MirrorSource {
+    id: string;
+    url: string;
+    domain: string;
+    title: string;
+    snippet: string;
+    published_at: string;
+}
+
+export interface MirrorCompetitor {
+    id: string;
+    name: string;
+    description: string;
+    tracked_urls: string[];
+    last_active: string;
+}
+
+export interface MirrorAnalysisResult {
+    target_id: string;
+    sentiment_score: number;
+    crowd_conviction: number;
+    summary: string;
+    key_phrases: string[];
+    sources: MirrorSource[];
+    analysis_status: string;
+    timestamp: string;
+}
+
+export async function fetchMirrorCompetitors(): Promise<MirrorCompetitor[]> {
+    const res = await fetch(`${API_URL}/mirror/competitors`);
+    if (!res.ok) throw new Error('Failed to fetch competitors');
+    return res.json();
+}
+
+export async function analyzeMirrorTarget(targetId: string): Promise<MirrorAnalysisResult> {
+    return fetchWithRetry(`${API_URL}/mirror/analyze/${targetId}`, {
+        method: 'POST',
+    });
 }
 
 export async function fetchSystemHealth(): Promise<SystemHealth> {

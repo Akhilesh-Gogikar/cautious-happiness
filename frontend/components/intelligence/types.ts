@@ -21,5 +21,7 @@ export interface AnalysisResult {
     crowd_conviction: number;
     summary: string;
     key_phrases: string[];
+    sources: Source[];
+    analysis_status: string;
     timestamp: string;
 }
