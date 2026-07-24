@@ -49,8 +49,8 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 
 1.  **Clone the Repository**
     ```bash
-    git clone <repo-url>
-    cd alpha-insights
+    git clone https://github.com/Akhilesh-Gogikar/cautious-happiness.git
+    cd cautious-happiness
     ```
 
 2.  **Configuration**
