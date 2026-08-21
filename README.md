@@ -1,8 +1,8 @@
 # Alpha Insights Platform
 
-> **Institutional-Grade Predictive Analytics & Competitive Intelligence**
+> Research dashboard for testing prediction-market and commodities intelligence workflows with local-model forecasting and a review loop.
 
-The **Alpha Insights Platform** is a specialized research environment designed to provide hedge funds with a competitive edge in prediction markets and physical commodities trading. It combines a local forecasting model with a verification agent (**Critic**) for hallucination control.
+The **Alpha Insights Platform** is a containerized FastAPI and Next.js project for builders evaluating how market questions move through forecasting, source gathering, task status tracking, and critique. It is useful for exploring architecture and product direction before hardening the system for trading or production use.
 
 ## For AI Agents
 
@@ -11,10 +11,10 @@ The **Alpha Insights Platform** is a specialized research environment designed t
 
 ## Core Capabilities
 
-- **Local forecasting engine**: The default compose stack runs a local `text-gen-cpp` / llama.cpp-compatible inference service and routes the platform's primary forecasting calls to the `lfm-thinking` model.
-- **The Critic (Risk Management)**: A secondary agent (Gemini-powered) that cross-references forecast citations against a trusted whitelist to prevent hallucination-based trading.
-- **Intelligence Mirror**: A competitive intelligence suite that reverse-engineers the "noise" and signals being fed to competitor algorithms, specifically for physical commodities markets.
-- **Data Noir Terminal**: A high-performance, low-latency UI designed for data-dense visualization and rapid decision-making.
+- **Local forecasting path**: `POST /prediction/predict` queues market questions through Celery and the default compose stack routes model calls to the local `text-gen-cpp` / llama.cpp-compatible service.
+- **Critic review loop**: The Critic agent scores stored market insights and records written critique text for follow-up analysis.
+- **Intelligence APIs**: The backend exposes market, news, mirror, scanner, strategy, trade, chat, and tool routes for experimenting with research workflows.
+- **Data-dense UI**: The Next.js dashboard gives visitors a frontend surface for the backend workflows and product framing.
 
 ## Runtime Reality Check
 
