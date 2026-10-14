@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
@@ -6,10 +8,17 @@ from app.core.auth import get_current_active_user
 from app.models import User
 from app.connectors.alpaca import AlpacaConnector
 
+logger = logging.getLogger("alpha_insights")
+
 router = APIRouter(
     prefix="/tools",
     tags=["tools"],
 )
+
+# Reading the account is open to every signed-in user; any other Alpaca tool
+# (placing orders, and whatever is added later) needs a trading role.
+ALPACA_READ_TOOLS = {"get_account", "list_positions"}
+TRADING_ROLES = {"admin", "trader"}
 
 class ToolCallRequest(BaseModel):
     connector: str
@@ -35,6 +44,13 @@ async def call_tool(
     Calls a backend capability connector.
     """
     if tool_req.connector == "alpaca":
+        trading = tool_req.name not in ALPACA_READ_TOOLS
+        if trading and current_user.role not in TRADING_ROLES:
+            logger.warning(f"Alpaca {tool_req.name} refused for {current_user.username} (role {current_user.role})")
+            raise HTTPException(status_code=403, detail="Insufficient privileges")
+        if trading:
+            logger.info(f"Alpaca {tool_req.name} by {current_user.username} (role {current_user.role}): {tool_req.arguments}")
+
         # Credentials come only from the server's environment; browsers no
         # longer hold or send them.
         connector = AlpacaConnector()

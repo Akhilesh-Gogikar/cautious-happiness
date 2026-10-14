@@ -22,6 +22,11 @@ class FakeTradingClient:
     def get_account(self):
         return SimpleNamespace(account_number="PA123", equity="1000", cash="500", buying_power="2000", currency="USD")
 
+    def submit_order(self, order):
+        self.order = order
+        return SimpleNamespace(id="ord-1", client_order_id="c-1", status="accepted", symbol=order.symbol,
+                               qty=order.qty, side=order.side)
+
 
 @pytest.fixture
 def client(monkeypatch):
@@ -35,8 +40,16 @@ def client(monkeypatch):
     return TestClient(app)
 
 
-def _call(client, name="get_account", headers=None):
-    return client.post("/tools/call", json={"connector": "alpaca", "name": name, "arguments": {}}, headers=headers or {})
+def _call(client, name="get_account", headers=None, arguments=None):
+    body = {"connector": "alpaca", "name": name, "arguments": arguments or {}}
+    return client.post("/tools/call", json=body, headers=headers or {})
+
+
+def _as_role(client, role):
+    client.app.dependency_overrides[get_current_active_user] = lambda: User(username=f"{role}-user", role=role)
+
+
+ORDER = {"symbol": "AAPL", "qty": 1, "side": "buy"}
 
 
 def test_keys_sent_by_a_browser_are_ignored(client):
@@ -75,3 +88,42 @@ def test_status_reports_server_configuration(client, monkeypatch, env, expected)
 def test_status_requires_a_signed_in_user(client):
     client.app.dependency_overrides.clear()
     assert client.get("/tools/alpaca/status").status_code == 401
+
+
+@pytest.fixture
+def configured(client, monkeypatch):
+    monkeypatch.setenv("ALPACA_API_KEY", "SERVER_KEY")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "SERVER_SECRET")
+    return client
+
+
+@pytest.mark.parametrize("role", ["analyst", "risk_manager", "viewer"])
+def test_orders_are_refused_without_a_trading_role(configured, role, caplog):
+    _as_role(configured, role)
+    response = _call(configured, "place_market_order", arguments=ORDER)
+    assert response.status_code == 403
+    assert FakeTradingClient.instances == []  # refused before touching Alpaca
+    assert any(f"{role}-user" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.parametrize("role", ["admin", "trader"])
+def test_trading_roles_can_place_orders(configured, role, caplog):
+    caplog.set_level("INFO")
+    _as_role(configured, role)
+    response = _call(configured, "place_market_order", arguments=ORDER)
+    assert response.status_code == 200
+    assert response.json()["symbol"] == "AAPL"
+    assert FakeTradingClient.instances[0].order.symbol == "AAPL"
+    assert any(f"{role}-user" in r.getMessage() and "place_market_order" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.parametrize("role", ["analyst", "risk_manager"])
+def test_every_role_can_read_the_account(configured, role):
+    _as_role(configured, role)
+    assert _call(configured, "get_account").status_code == 200
+
+
+def test_unknown_alpaca_tools_need_a_trading_role(configured):
+    # Deny by default: a tool added later is not open to every user by accident.
+    _as_role(configured, "analyst")
+    assert _call(configured, "cancel_all_orders").status_code == 403
