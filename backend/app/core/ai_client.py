@@ -1,4 +1,5 @@
 import os
+import re
 import httpx
 import json
 import logging
@@ -138,17 +139,68 @@ class LlamaCppProvider(AIProvider):
             timeout=300.0,
         ) as response:
             response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-
-                token = data.get("content") or data.get("token") or ""
+            async for line in _iter_sse_lines(response):
+                token, done = parse_llama_cpp_stream_line(line)
                 if token:
                     yield token
+                if done:
+                    break
+
+
+_SSE_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+
+
+async def _iter_sse_lines(response: httpx.Response) -> AsyncIterator[str]:
+    """Yield lines split only on CRLF, LF or CR, the SSE line terminators.
+
+    httpx's aiter_lines() also splits on U+2028, U+2029 and U+0085, which
+    llama.cpp writes unescaped inside its JSON, so it would cut a frame in two.
+    """
+    pending = ""
+    async for text in response.aiter_text():
+        *lines, pending = _SSE_LINE_BREAK.split(pending + text)
+        for line in lines:
+            yield line
+    if pending:
+        yield pending
+
+
+class LlamaCppStreamError(RuntimeError):
+    """llama.cpp reported an error in the middle of a streamed completion."""
+
+
+def parse_llama_cpp_stream_line(line: str) -> tuple[str, bool]:
+    """Return (token, done) for one line of a llama.cpp /completion stream.
+
+    llama.cpp streams Server-Sent Events: `data: {"content": ..., "stop": false}`
+    per chunk, a final frame with `"stop": true`, `:` keep-alive comments,
+    `data: {"error": {...}}` on failure (older builds send an `error: {...}` line)
+    and `data: [DONE]` on its OpenAI-compatible routes. Bare JSON lines, as sent
+    by non-SSE servers such as text-gen-cpp-mock, are accepted too.
+    """
+    line = line.strip()
+    if not line or line.startswith(":"):
+        return "", False
+    if line.startswith("error:"):
+        raise LlamaCppStreamError(line[len("error:"):].strip())
+    if line.startswith("data:"):
+        line = line[len("data:"):].strip()
+    elif line.startswith(("event:", "id:", "retry:")):
+        return "", False
+    if line == "[DONE]":
+        return "", True
+
+    try:
+        data = json.loads(line)
+    except json.JSONDecodeError:
+        return "", False
+    if not isinstance(data, dict):
+        return "", False
+    if "error" in data:
+        raise LlamaCppStreamError(json.dumps(data["error"]))
+
+    token = data.get("content") or data.get("token") or ""
+    return token, data.get("stop") is True
 
 class AIClient:
     def __init__(self):

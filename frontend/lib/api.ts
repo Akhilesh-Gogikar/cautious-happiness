@@ -146,6 +146,7 @@ export async function chatWithModelStream(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let finished = false;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -161,14 +162,22 @@ export async function chatWithModelStream(
             const dataLine = lines.find(l => l.startsWith('data:'))?.slice(5).trim();
             if (!event || !dataLine) continue;
 
+            let data: any;
             try {
-                const data = JSON.parse(dataLine);
-                if (event === 'thinking' && data.message) handlers.onThinking?.(data.message);
-                if (event === 'token' && data.token) handlers.onToken?.(data.token);
-                if (event === 'done') handlers.onDone?.(data.response || '');
+                data = JSON.parse(dataLine);
             } catch {
-                // Ignore malformed events, keep stream alive.
+                continue; // Ignore malformed events, keep stream alive.
+            }
+            if (event === 'thinking' && data.message) handlers.onThinking?.(data.message);
+            if (event === 'token' && data.token) handlers.onToken?.(data.token);
+            if (event === 'error') throw new Error(data.message || 'Streaming chat failed');
+            if (event === 'done') {
+                finished = true;
+                handlers.onDone?.(data.response || '');
             }
         }
     }
+
+    // A stream that ends without `done` was cut off; don't present it as complete.
+    if (!finished) throw new Error('Streaming chat ended before completion');
 }
