@@ -59,6 +59,7 @@ backend/
 ### Running locally (without Docker)
 > [!WARNING]
 > Docker is the recommended path because the default environment wiring expects Redis, Postgres, and `text-gen-cpp`.
+> Compose does not publish Postgres or Redis on the host, so a backend run this way needs its own instances: point `DATABASE_URL` and `REDIS_URL` at them.
 
 ```bash
 cd backend
@@ -73,6 +74,7 @@ uvicorn app.main:app --reload
 4. Document whether the route expects `lfm-thinking`, an alias such as `openforecaster`, or a non-default provider.
 
 ## 6. Troubleshooting
+- **Inspecting Postgres or Redis**: compose does not publish their ports on the host. Open a shell inside the containers instead: `docker compose exec db psql -U postgres polymarket` or `docker compose exec redis redis-cli`.
 - **Local inference connection error**: Ensure the `text-gen-cpp` container is healthy and reachable at `http://localhost:8080` from the host or `http://text-gen-cpp:8080` in Docker. It answers `/health` with 503 until the model has loaded; `docker compose logs text-gen-cpp` shows load errors. If it reports a bad model file, run `docker compose down`, remove the `ollama_downloads` volume (`docker volume ls` shows its full name) and start again so `setup_model` downloads the model afresh.
 - **Unexpected model fallback**: `lfm-40b` goes to Ollama only when `OLLAMA_HOST` is set; compose sets it empty, so it runs on the local llama.cpp model.
 - **Gemini auth error**: Check `GEMINI_API_KEY` in `.env`, or leave it empty to run the critic on the local model.

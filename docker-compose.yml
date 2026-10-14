@@ -151,8 +151,8 @@ services:
       - POSTGRES_DB=polymarket
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Not published on the host: the app reaches it as db:5432 on the compose
+    # network. For a shell: docker compose exec db psql -U postgres polymarket
     networks:
       - alphainsights-net
     healthcheck:
@@ -165,8 +165,8 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     container_name: alphainsights-redis
-    ports:
-      - "6379:6379"
+    # Not published on the host: the app reaches it as redis:6379 on the
+    # compose network. For a shell: docker compose exec redis redis-cli
     volumes:
       - redis_data:/data
     networks:
