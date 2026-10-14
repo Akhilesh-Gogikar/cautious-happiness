@@ -12,8 +12,8 @@ echo "Using Dockerized Playwright Runner..."
 # 1. Start Infrastructure (in background or ensure running)
 echo "Starting Docker services..."
 cd ..
-# Remove orphaned containers to avoid conflicts, rebuild test runner
-docker compose up -d db redis backend frontend
+# Rebuild so the services run the current code (compose does not mount the source)
+docker compose up -d --build db redis backend frontend
 # Build the test runner image explicitly to update changes
 docker compose build test-runner
 

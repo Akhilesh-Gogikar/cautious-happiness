@@ -56,6 +56,9 @@ backend/
 
 ## 5. Development Guide
 
+### Running with Docker Compose
+Compose runs the backend and worker from the code built into their image; it does not mount the source or auto-reload. After changing backend code, rebuild them with `docker compose up -d --build backend worker` (`./run.sh` rebuilds everything). For a reload-on-save loop, run the backend outside Docker as below.
+
 ### Running locally (without Docker)
 > [!WARNING]
 > Docker is the recommended path because the default environment wiring expects Redis, Postgres, and `text-gen-cpp`.

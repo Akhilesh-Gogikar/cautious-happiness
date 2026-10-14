@@ -1,0 +1,10 @@
+# Compose runs the code baked into this image (it does not mount the source),
+# so keep local caches, virtualenvs and environment files out of it.
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.venv
+venv
+.env
+.env.*
+*.rdb
