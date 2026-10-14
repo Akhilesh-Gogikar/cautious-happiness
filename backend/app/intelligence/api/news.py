@@ -11,8 +11,10 @@ router = APIRouter(
 )
 
 
+# Plain def: FastAPI runs it in the threadpool, so the RSS fetches and the first
+# (lazy) FinBERT load do not block the event loop.
 @router.get("/news", response_model=List[NewsItem])
-async def get_news():
+def get_news():
     return feed_manager.fetch_news()
 
 

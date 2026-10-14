@@ -1,9 +1,8 @@
 import json
 import logging
 from sqlalchemy.future import select
-from sentence_transformers import SentenceTransformer
 from app.db.models import NewsDocument
-from app.db.session import async_session
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger("news_agent")
 
@@ -14,6 +13,8 @@ class NewsAgent:
         # but for demo simplicity, we'll map vectors properly or use all-MiniLM-L6-v2 and pad/project, 
         # However BAAI/bge-m3 produces 1024d embeddings.
         try:
+            from sentence_transformers import SentenceTransformer
+
             self.embedder = SentenceTransformer("BAAI/bge-m3")
         except Exception as e:
             logger.warning(f"Failed to load local embedder BAAI/bge-m3. Using mock embedder: {e}")
@@ -37,7 +38,7 @@ class NewsAgent:
         """Ingest a news document, chunk it, embed it, and store in pgvector."""
         embedding = self._get_embedding(f"{title} {content}")
         
-        async with async_session() as session:
+        async with AsyncSessionLocal() as session:
             doc = NewsDocument(
                 title=title,
                 content=content,
@@ -52,7 +53,7 @@ class NewsAgent:
         """Retrieve relevant context for a given query using pgvector semantic search."""
         query_embedding = self._get_embedding(query)
         
-        async with async_session() as session:
+        async with AsyncSessionLocal() as session:
             # pgvector distance operator <=> (Cosine distance)
             # Find the closest documents by cosine distance
             stmt = select(NewsDocument).order_by(

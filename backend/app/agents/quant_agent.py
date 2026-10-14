@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from app.domain.intelligence.service import IntelligenceService
 from app.agents.news_agent import NewsAgent
 from app.connectors.polymarket import PolymarketConnector
-from app.db.session import async_session
+from app.db.session import AsyncSessionLocal
 from sqlalchemy.future import select
 from app.db.models import PolymarketMarket, PolymarketOrderbook
 
@@ -28,7 +28,7 @@ class QuantAgent:
         
         # 2. Retrieve related Polymarket contextual data (e.g., active geopolitics markets)
         polymarket_context = ""
-        async with async_session() as session:
+        async with AsyncSessionLocal() as session:
             stmt = select(PolymarketMarket).where(PolymarketMarket.status == "open").limit(5)
             result = await session.execute(stmt)
             markets = result.scalars().all()
