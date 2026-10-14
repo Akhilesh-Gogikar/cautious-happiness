@@ -1,13 +1,9 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import json
 import time
-import asyncio
-from celery.result import AsyncResult
-from app.worker import celery_app
-from app.cache import r as redis_client
 from app.health import get_system_health
 
 # Modular Routers
@@ -22,6 +18,7 @@ from app.intelligence.api.mirror import router as mirror_router
 from app.routers.scanner import router as scanner_router
 from app.routers.demo import router as demo_router
 from app.routers.tools import router as tools_router
+from app.routers.lifecycle import router as lifecycle_router
 
 # Configure Structured Logging
 logging.basicConfig(level=logging.INFO)
@@ -106,45 +103,10 @@ app.include_router(mirror_router)
 app.include_router(scanner_router)
 app.include_router(tools_router)
 app.include_router(demo_router, prefix="/demo", tags=["demo"])
+app.include_router(lifecycle_router)
 
 @app.get("/health")
 async def health_check():
     health_status = await get_system_health()
     status = "ok" if all(health_status.values()) else "degraded"
     return {"status": status, "details": health_status}
-
-@app.websocket("/ws/lifecycle/{task_id}")
-async def websocket_lifecycle(websocket: WebSocket, task_id: str):
-    await websocket.accept()
-    pubsub = redis_client.pubsub()
-    channel = f"task_events:{task_id}"
-    await pubsub.subscribe(channel)
-
-    try:
-        if task_id.startswith("cached_"):
-            await websocket.send_json({"event": "status", "message": "Analysis complete (Cached)"})
-            await websocket.close()
-            return
-
-        result = AsyncResult(task_id, app=celery_app)
-        while True:
-            message = pubsub.get_message(ignore_subscribe_messages=True)
-            if message:
-                data = json.loads(message["data"])
-                await websocket.send_json(data)
-                if data.get("event") == "complete":
-                    break
-
-            await asyncio.sleep(0.1)
-            if result.ready():
-                await websocket.send_json({"event": "complete", "message": "Task finished."})
-                break
-
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected: {task_id}")
-    finally:
-        await pubsub.unsubscribe(channel)
-        try:
-            await websocket.close()
-        except Exception:
-            pass

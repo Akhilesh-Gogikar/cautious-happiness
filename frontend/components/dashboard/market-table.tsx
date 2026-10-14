@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchMarkets, predictMarket, getTaskStatus, API_URL } from '@/lib/api';
 import { toast } from "sonner";
 import { ChatPanel } from './chat-panel';
@@ -93,7 +93,14 @@ export function MarketTable() {
     // Sort by volume descending for watchlist
     const sortedMarkets = [...filteredMarkets].sort((a, b) => b.volume_24h - a.volume_24h);
 
+    // The audit on screen. Starting another closes the previous socket, and late
+    // messages or results from an earlier audit are ignored.
+    const auditRef = useRef<{ taskId: string; ws: WebSocket } | null>(null);
+    useEffect(() => () => auditRef.current?.ws.close(), []);
+
     const handlePredict = async (market: any) => {
+        auditRef.current?.ws.close();
+        auditRef.current = null;
         setSelectedMarket(market);
         setPredicting(true);
         setPrediction(null);
@@ -106,14 +113,18 @@ export function MarketTable() {
 
             const wsUrl = API_URL.replace('http', 'ws') + `/ws/lifecycle/${task_id}`;
             const ws = new WebSocket(wsUrl);
+            auditRef.current = { taskId: task_id, ws };
+            const isCurrent = () => auditRef.current?.taskId === task_id;
 
             ws.onmessage = (event) => {
+                if (!isCurrent()) return;
                 const data = JSON.parse(event.data);
                 if (data.event === 'status') {
                     setStatusMessage(data.message);
                 } else if (data.event === 'complete') {
                     ws.close();
                     getTaskStatus(task_id).then(status => {
+                        if (!isCurrent()) return;
                         if (status.result?.error === 'model_missing') {
                             setPredicting(false);
                             toast.error("AI Model Not Found", { description: "Please run ./setup_docker_model.sh" });
@@ -122,6 +133,11 @@ export function MarketTable() {
                         setPrediction(status.result);
                         setPredicting(false);
                         toast.success("Analysis Complete", { description: "Divergence audited." });
+                    }).catch(err => {
+                        if (!isCurrent()) return;
+                        console.error(err);
+                        setPredicting(false);
+                        toast.error("Analysis Failed", { description: "Could not load the analysis result." });
                     });
                 } else if (data.event === 'failed') {
                     ws.close();
@@ -131,6 +147,7 @@ export function MarketTable() {
             };
 
             ws.onerror = (err) => {
+                if (!isCurrent()) return;
                 console.error("WS Error:", err);
                 setPredicting(false);
             };
