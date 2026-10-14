@@ -104,6 +104,8 @@ This framing is intentional: the repo shows strong direction and meaningful impl
 - **Design System**: [Style Guide](docs/style_guide.md)
 - **Product Framing**: [Product Framework](docs/PRODUCT_FRAMEWORK.md)
 - **Execution Plan**: [YC-Style Product Development Plan](docs/YC_PRODUCT_DEVELOPMENT_PLAN.md)
+- **Feature-Level Plan**: [Product Management Plan](docs/PRODUCT_MANAGEMENT_PLAN.md) (every page and feature, with decision, requirements and phase)
+- **Quality Baseline**: [QA Test Report](docs/QA_TEST_REPORT.md) (full test pass, defect log)
 - **Strategic Vision**: [Vision & Roadmap](vision.md)
 - **Legal/IP**: [Patent Documentation](Patent.md)
 
