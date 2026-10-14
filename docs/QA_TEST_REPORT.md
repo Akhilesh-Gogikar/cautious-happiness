@@ -6,6 +6,7 @@
 | **Commit tested** | `eb728a0` (`main`) |
 | **Scope** | Every frontend route, every dashboard view, every global UI component, every mounted backend endpoint, the Celery prediction pipeline, the WebSocket lifecycle stream, and the existing automated test suites |
 | **Companion document** | [Product Management Plan](PRODUCT_MANAGEMENT_PLAN.md), which turns these findings into a per-feature plan |
+| **Fix status** | QA-001, QA-002, QA-008 and QA-009 fixed and QA-033, QA-052 partly fixed on this branch after the test pass; see [§9 Fix status](#9-fix-status). Everything else is as tested. |
 
 ## 1. Executive summary
 
@@ -296,3 +297,18 @@ Before the next demo or pilot, these should be automated and green in CI:
 4. Chat returns non-empty text against llama.cpp SSE framing. This needs a contract test using a recorded llama.cpp stream.
 5. Unauthenticated calls to every non-public route return 401, and analyst/risk roles cannot reach order placement.
 6. `pytest` passes with zero network access. `local_tests` E2E is updated for the login gate.
+
+## 9. Fix status
+
+Fixed on this branch after the test pass. Each fix was re-tested on the same stack (API, worker, browser and, for nginx, the repo's own config run natively) and went through an adversarial review whose upheld findings were also fixed.
+
+| Defect | Status | Commit | What changed |
+| --- | --- | --- | --- |
+| QA-001 | Fixed | `9e55ae3` | Circular import removed; `uvicorn app.main:app` boots (about 5 s to healthy). A fresh-interpreter import test guards it. |
+| QA-002 | Fixed | `9e55ae3` | Agents use `AsyncSessionLocal`; `sentence-transformers` is declared and imported lazily. |
+| QA-033 | Partly fixed | `9e55ae3` | FinBERT and bge-m3 load on first use, off the event loop, not at import. Offline, sentiment is still neutral and the demo embedder still falls back to a constant vector. |
+| QA-009 | Fixed | `f4db43f` | The llama.cpp stream parser follows llama-server's SSE format (checked against llama.cpp source); mid-stream model errors reach the UI as errors; SSE output is valid JSON for any token. All four chat surfaces return replies. |
+| QA-008 | Fixed | `1c64685` | The lifecycle socket no longer crashes; it reports `complete` only once the result is readable, reports crashed or revoked tasks as `failed`, and releases its Redis subscription on disconnect, timeout or Redis outage. The Neural Audit renders a result in about 1 s with a JSON-capable model. |
+| QA-052 | Partly fixed | `1c64685` | nginx forwards WebSocket upgrades on `/api/ws/`. SSE responses are still buffered by nginx. |
+
+Regression gates 3 and 4 in §8 are now covered by automated tests (`tests/test_lifecycle_ws.py`, `tests/test_llama_cpp_stream.py`); gates 1, 2, 5 and 6 remain open.
