@@ -22,7 +22,7 @@ The Next.js app builds, type-checks, and lints cleanly, and the UI looks polishe
 | Security posture | ❌ The JWT secret is forgeable, default passwords are trivial, private keys are committed, order placement has no role check, and several endpoints are unauthenticated. |
 | Automated tests | ⚠️ Backend: 46 passed, 2 failed, 1 module fails to import. E2E: 4 of 6 fail (stale). No CI. |
 
-**56 defects logged:** 12 critical (S1), 32 major (S2), 12 minor or cosmetic (S3/S4). See [§5 Defect log](#5-defect-log).
+**56 defects logged:** 14 critical (S1), 29 major (S2), 13 minor or cosmetic (S3/S4). See [§5 Defect log](#5-defect-log).
 
 ## 2. Test environment and method
 
@@ -81,7 +81,7 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 - `tests/test_fallback.py::test_fallback_logging_is_structured` fails with `assert 0 == 2`. No structured `fallback_attempt_*` records are emitted, and it fails in isolation too.
 - `tests/test_engine.py::test_generate_forecast_parsing` is **not hermetic**. Its httpx mock never intercepts the shared client:
   - With `LLAMA_CPP_HOST` set, it calls the real LLM and fails.
-  - With `LLAMA_CPP_HOST` unset, it tries the hardcoded IP `172.19.0.3` and hung until the 300 s timeout.
+  - With `LLAMA_CPP_HOST` unset, it tries a hardcoded Docker-internal LLM address (`core/ai_client.py`) and hung until the 300 s timeout.
 - The run also needs `torch`, which is only installable from PyPI as the full CUDA build (about 3 GB), plus `aiosqlite`, `pytest`, and `pytest-asyncio`. None of the last three are in `requirements.txt`.
 
 ## 4. Results by surface
@@ -117,13 +117,13 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 | Live Markets: Macro State, Signals, Depth chart | 🎭 | Static arrays. The world map is an external Wikimedia SVG. |
 | Live Markets: Data Matrix | 🎭 | 8 hardcoded commodities on a 1 s random walk. Right-click "Trade Now" shows a toast "Routing NGAS order to nearest dark pool" **with no request made**. |
 | Portfolio | 🎭 | Fully hardcoded. It silently becomes the Alpaca view once an Alpaca key is saved. |
-| Alpaca Markets | 🟡 | Error state: "configure them in SYSTEM_CONFIG". That place doesn't exist; the settings are behind the gear icon. Calls `localhost:8000` directly. |
+| Alpaca Markets | 🟡 | Error state: "configure them in SYSTEM_CONFIG". That is the title of the unlabeled gear-icon dialog, which is hard to find; the sidebar "Config" item opens a placeholder. Calls `localhost:8000` directly. |
 | Strategies (CLI) 🔒 | 🟡 | `/help`, `/list` (hardcoded), `/status` (hardcoded) and `/deploy` (always fails) all respond. Free text gives **"No response received."** (chat bug QA-009). Input is disabled for about 2.4 s by a boot animation on every visit. |
 | Correlations 🔒 | 🎭 | Static crypto and politics matrix, off-wedge for a commodities product. Most cells have no color (dynamic Tailwind classes). See screenshot 07. |
 | Quant Engine 🔒 | ❌ | "Generate" puts **non-code LLM prose into the code editor** with no validation. Save and Backtest do nothing. Python is highlighted as JavaScript. |
 | Intelligence Mirror 🔒 | 🟡 | Competitors load (2 hardcoded firms). Analyze works, with sources blocked in the sandbox. On empty sources it shows a fabricated fallback card. **INITIATE_BUY shows "Mirror Trade Initialized"** while the backend only returns an unsigned placeholder payload. |
 | Analyst Chat | ❌ | `POST /chat/stream` returns 200, but the **assistant bubble is empty**. The persona toggle has no backend effect. See screenshot 03. |
-| Alpha Scanner 🔒 | 🟡 | **Default filters return 0 assets on first load.** Relaxing the filters gives 14 assets. Metrics are synthetic sin/cos of time. Calls `localhost:8000` directly. |
+| Alpha Scanner 🔒 | 🟡 | **Default filters returned 0 assets on first load** (they do about 60% of the time, because the synthetic metrics move with the clock; QA-038). Relaxing the filters gives 14 assets. Metrics are synthetic sin/cos of time. Calls `localhost:8000` directly. |
 | Security 🔒 | 🎭 | Static services and audit log. LOCKDOWN_MODE does nothing. The backend security router is not mounted. |
 | Config | ❌ | Shows "ACCESS_RESTRICTED // MODULE_DECRYPTION_IN_PROGRESS" **to admins too**. There is no functionality. See screenshot 06. |
 
@@ -131,14 +131,14 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 
 | Component | Result | Observed |
 | --- | --- | --- |
-| Sidebar navigation | 🟡 | Works with a mouse. **0 keyboard-focusable items** (`div onClick`). Locked items still navigate, to a placeholder. "Documentation" is dead. The view is not in the URL, so reload resets to Markets. |
-| Ticker + chart modal | 🎭 | Static prices (BTC $42,105). The modal shows `Math.random()` data labeled "LIVE_CHART". Items scroll constantly, so they are hard to click. |
+| Sidebar navigation | 🟡 | Works with a mouse. **0 keyboard-focusable items** (`div onClick`). Six of the seven locked items still navigate, to a placeholder; the locked Agent Builder item does nothing. "Documentation" is dead. The view is not in the URL, so reload resets to Markets. |
+| Ticker + chart modal | 🎭 | Static prices (BTC $42,105). The modal shows `Math.random()` data labeled "LIVE_CHART". Items are click-only `div`s, not keyboard-reachable (the tape pauses on hover). |
 | Stat cards | 🎭 | All hardcoded. Compute Health is **permanently red "CRITICAL LAG DETECTED"** because 88.5 < 90. |
 | System status dropdown | 🟡 | Polls `/health` every 15 s, but shows **SYSTEM_OPTIMAL even when `/health` says `degraded`**. **Renders under the stat cards.** |
 | Notification center | 🎭 | 4 hardcoded alerts, including a fake "Critical Margin Alert". **The popover renders under the stat cards, so it is unreadable.** See screenshot 04. |
-| Settings modal | 🟡 | Saves to localStorage. The llama.cpp URL and Gemini key are never read. No save confirmation; the dialog stays open. Secrets are stored in plaintext. |
+| Settings modal | 🟡 | Saves to localStorage. The llama.cpp URL and Gemini key are saved but never used. No save confirmation; the dialog stays open. Secrets are stored in plaintext. |
 | Sidebar chat (global) | ❌ | `POST /api/chat` returns 200 with an **empty reply bubble**. The close button overlaps Send. Visible on landing and login. |
-| Wallet connect | ❌ | Placeholder WalletConnect `projectId` causes uncaught errors on **every page**. The wallet is never used by any feature. |
+| Wallet connect | ❌ | Wallet connectors open relay WebSockets on **every page**; with the relays blocked in the sandbox, each page threw uncaught errors. The `projectId` is a placeholder (RainbowKit substitutes its shared example ID). The wallet is never used by any feature. |
 | Mobile (390 px) | ❌ | The fixed 256 px sidebar takes about 2/3 of the screen and content is clipped. Not usable. |
 
 ### 4.4 Backend API (19 mounted routes, plus the WebSocket)
@@ -208,6 +208,8 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 | QA-010 | LLM runtime | Compose serves a canned mock, not the downloaded `lfm-thinking` model. Outputs are meaningless. | L | `docker-compose.yml` builds `text-gen-cpp-mock`; `text-gen-cpp-mock/main.py:24` |
 | QA-011 | Trading | `/tools/call` lets **any** authenticated role place Alpaca market orders with the server's credentials. No audit. | L | `backend/app/routers/tools.py` (no role check); `connectors/alpaca.py:13-15` (falls back to env credentials) |
 | QA-012 | Security | Unauthenticated database write and compute endpoints | L | `/demo/ingest_news`, `/demo/analyze`, `/strategy/generate`, `/mirror/analyze`, `/intelligence/news`, scanner |
+| QA-024 | Critic | The Gemini critic path can expose the server's Gemini API key to users and logs through error text. It also calls the legacy `gemini-pro` endpoint and ignores the model the critic requests. Exploit specifics are withheld from this public document pending decision D-9. | L/C | `core/ai_client.py` (Gemini provider); `intelligence/domain/critic.py` (error handling) |
+| QA-051 | Infra | Compose publishes Postgres (trivial default password) and Redis (no auth) on all host interfaces, plus the app ports, which bypass nginx/TLS. Backend runs `--reload`; backend and worker bind-mount the source. | C | `docker-compose.yml` (`ports:` on db, redis, backend, frontend, text-gen-cpp; backend command and volumes) |
 
 ### S2: Major
 
@@ -216,16 +218,13 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 | QA-013 | Trading UI | False-success toasts: "Mirror Trade Initialized" and "Routing … to nearest dark pool". No order exists. | L | `components/intelligence/DecisionProtocol.tsx`; `components/dashboard/data-matrix-feed.tsx` (toast only); `services/execution.py:55-60` (placeholder calldata) |
 | QA-014 | Trading API | No validation: side `HODL` and negative quantity accepted | L | `app/models.py` TradeRequest; `routers/trade.py` |
 | QA-015 | Forecast | Failures are returned as `completed`. Celery `autoretry_for` never fires. | L | `intelligence/application/engine.py:94-103`; `worker.py:47-49` |
-| QA-016 | Forecast | Result cache is read but never written | L | `routers/prediction.py:32-41` (no writer anywhere) |
 | QA-017 | Forecast | Unknown or expired task ID reports `processing` forever | L | `routers/prediction.py:58-62` |
 | QA-018 | Forecast | No ownership check: any user can read any task result | L | `routers/prediction.py` |
 | QA-019 | Platform | Rate limit keyed on client IP. Behind nginx this becomes a site-wide 6/min limit. Redis errors produce 500s. | L/C | `app/limiter.py:31-43` |
-| QA-020 | Frontend | `http://localhost:8000` hardcoded in 4 components, so they break for any non-local user | L | `alpha-scanner.tsx:46`, `StrategyBuilder.tsx:30`, `DecisionProtocol.tsx:30`, `alpaca-dashboard.tsx:43,56` |
+| QA-020 | Frontend | `http://localhost:8000` is hardcoded in `alpha-scanner.tsx` and is the effective fallback in 3 more components, so all 4 break for any non-local user. | L | `alpha-scanner.tsx:46` (literal URL); `StrategyBuilder.tsx:30`, `DecisionProtocol.tsx:30`, `alpaca-dashboard.tsx:43,56` (`process.env.NEXT_PUBLIC_API_URL \|\| 'http://localhost:8000'`). `NEXT_PUBLIC_API_URL` is set only at runtime (`docker-compose.yml:81`), not at build time (`frontend/Dockerfile:14`), so Next.js never inlines it and the browser uses the fallback. |
 | QA-021 | Infra | Scanner unreachable through nginx: the `/api/v1` prefix collides with the `/api/` strip | C | `routers/scanner.py:13`; `nginx/conf.d/default.conf` |
 | QA-022 | Data | No schema bootstrap: no Alembic revisions, no startup `create_all`, and `init_db.py` doesn't create the `vector` extension | L/C | `backend/migrations/` (no `versions/`); `init_db.py` |
-| QA-023 | Security | Security router (API keys, IP allowlist, audit log) not mounted. Audit logging is never invoked. | L | `app/main.py` (router not included); `core/audit.py` (unused) |
-| QA-024 | Critic | Gemini path uses the legacy `gemini-pro` URL with the key in the query string. The raw exception, possibly including that URL, is echoed into the user-visible critique. | L/C | `core/ai_client.py:84`; `intelligence/domain/critic.py:41-46` |
-| QA-025 | Critic | `adversarial_score`, `logical_fallacies` and `counter_arguments` are never populated | L | Critic prompt never asks for them (`intelligence/domain/critic.py:25-30`) |
+| QA-023 | Security | Security router (API keys, IP allowlist, audit log) not mounted. Audit logging is never invoked. | L | `app/main.py` (router not included); `core/audit.py` (called only from the unmounted security router, so no event is ever written) |
 | QA-026 | Forecast | Swarm sections mislabeled ("mirror" rendered as "Geopolitical Impact", and so on) | L | `intelligence/domain/swarm.py:120-126` |
 | QA-027 | Data integrity | Synthetic "physical intelligence" attributed to real vendors (Orbital Insight, Vortexa, …) and returned as sources | L | `intelligence/infrastructure/physical_data.py:27-98` |
 | QA-028 | Health | UI shows SYSTEM_OPTIMAL when `/health` says `degraded`. Health is `degraded` whenever Gemini is unset. | L | `system-status-dropdown.tsx:57`; `main.py:113` |
@@ -233,31 +232,32 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 | QA-030 | UI | Compute Health card permanently shows "CRITICAL LAG DETECTED" | L | `stat-cards.tsx:26` (hardcoded 88.5 < 90) |
 | QA-031 | Strategy | Generated "code" is not validated; prose lands in the editor. Save and Backtest do nothing. | L | `strategy/service.py:18-19`; `StrategyBuilder.tsx:102-107` |
 | QA-032 | Agent Builder | No persistence or backend. Graph lost on reload. Save Draft and Deploy do nothing. | L | `app/agents/builder/page.tsx:59-64` |
-| QA-033 | Platform | Import-time model downloads (FinBERT, bge-m3) and a hard `torch` import. Slow cold start; fails offline. | L | `domain/intelligence/sentiment.py:45`; `agents/news_agent.py:17` |
+| QA-033 | Platform | Import-time model downloads (FinBERT, bge-m3) plus hard `torch`/`transformers`/`sentence_transformers` imports. Slow cold start. Offline, both loads fail silently and the API still boots with degraded output: every sentiment is neutral and every embedding is the constant `[0.01]*1024`, so RAG retrieval is meaningless. | L | `domain/intelligence/sentiment.py:2-3,26-33,45`; `agents/news_agent.py:4,16-20,32-34` (instantiated at import via `routers/demo.py:9`) |
 | QA-034 | Quality | Test suites stale or non-hermetic. No CI. | L | §3 |
 | QA-035 | Auth | `/intelligence` and `/portfolio` routes have no auth guard | L | `app/intelligence/page.tsx`, `app/portfolio/page.tsx` |
 | QA-036 | Chat | Persona selector has no effect | C | `persona` is never read in `backend/app` |
-| QA-037 | Chat | Backend overwrites client history and ignores `context`. Only the last 5 turns are used. | C | `services/chat.py:16-41`; `intelligence/application/forecasting.py:119-143` |
-| QA-038 | Scanner | Default filters return 0 results. A negative premium filter is never sent. Negatives render as "+$-x". | L | `alpha-scanner.tsx:39,207` |
-| QA-039 | Correlations | Heatmap colors missing (dynamic Tailwind classes). Data is static and off-wedge. | L | `correlations-view.tsx:41-51` |
-| QA-040 | Settings | llama.cpp URL and Gemini key are never used. No save feedback. Secrets in plaintext localStorage. | L | `settings-modal.tsx`; `lib/llm-config.ts` (unused) |
-| QA-041 | Alpaca | Error message points to a nonexistent "SYSTEM_CONFIG" | L | `alpaca-dashboard.tsx` |
+| QA-037 | Chat | Backend replaces client history with the user's 10 most recent stored messages (shared across all chat surfaces) and ignores `context`. Only the last 5 messages reach the prompt. | C | `services/chat.py:38-41` (`/chat`) and `services/chat.py:81-84` (`/chat/stream`); `intelligence/application/forecasting.py:119-143` (`history[-5:]` at :135) |
+| QA-038 | Scanner | Default filters (premium ≥ 2, accuracy ≥ 90) usually return 0 results (about 60% of the time): the metrics are synthetic time-based sine waves that move almost in phase across assets. A negative premium filter is never sent. Negatives render as "+$-x". | L | `alpha-scanner.tsx:29-30,39,207`; `routers/scanner.py:139-142` |
+| QA-039 | Correlations | Heatmap colors missing for every cell with magnitude above 0.20 (dynamic Tailwind classes are never generated). Only weak cells (magnitude ≤ 0.20) get the `/20` tint, so the visual emphasis is inverted. Data is a static mock matrix labeled "UPDATED HOURLY" and is off-wedge. | L | `correlations-view.tsx:10-18,41-51,79-86` |
+| QA-040 | Settings | llama.cpp URL and Gemini key are saved but never used. No save feedback. Secrets (Gemini key, Alpaca key and secret) stored in plaintext localStorage. | L | `settings-modal.tsx:44-51`; `lib/llm-config.ts:10-13` (`getLlamaCppUrl()` is never called); `POLY_GEMINI_KEY` is read only by the modal itself (`settings-modal.tsx:38`) |
 | QA-042 | Config | Config view shows "Access Restricted" placeholder to admins | L | `app/dashboard/page.tsx:164` |
 | QA-043 | Navigation | Active view not in URL, so reload and back lose context. Agent Builder nav always lands on Markets. | L | `app/dashboard/page.tsx:60`; `app/agents/builder/page.tsx:34` |
 | QA-044 | Sidebar chat | Close button overlaps the Send button | L | `components/layout/sidebar-chat.tsx` (fixed toggle at `bottom-6 right-6`) |
+| QA-052 | Infra | nginx doesn't forward WebSocket upgrades, so behind nginx the Neural Audit lifecycle socket never connects. The backend returns 404 to the non-upgraded request, and the UI silently stops the spinner with no result, even once QA-008 is fixed. Buffering is also left on, so chat SSE arrives all at once. | C | `nginx/conf.d/default.conf:31-40` (`/api/` has no `proxy_http_version 1.1`, `Upgrade`/`Connection` headers or `proxy_buffering off`). The WS URL is built from `/api` at `components/dashboard/market-table.tsx:107`. `ws.onerror` (`:133-136`) has no fallback. |
 
 ### S3/S4: Minor and cosmetic
 
 | ID | Area | Defect | Evidence |
 | --- | --- | --- | --- |
+| QA-016 | Forecast | Result cache is read but never written (`routers/prediction.py:32-41`, `:51-56`; no writer anywhere), so an identical question re-runs the full pipeline. This costs only time and LLM compute; the `cached_*` branches are dead code. | L |
+| QA-025 | Critic | `adversarial_score`, `logical_fallacies` and `counter_arguments` are never populated. They always return their defaults (0.0 / []), and nothing in `frontend/` reads them. | L |
+| QA-041 | Alpaca | The error says to configure keys in "SYSTEM_CONFIG" (`alpaca-dashboard.tsx:80`). That name appears only as the title of the unlabeled gear-icon dialog (`settings-modal.tsx:69`), which does hold the Alpaca key fields. The sidebar "Config" item, where users will look, opens a placeholder (QA-042). | L |
 | QA-045 | Accessibility | 0 focusable nav items. 9 icon-only buttons with no accessible name. Empty `<title>` (root layout is a client component, so there is no metadata). | L |
 | QA-046 | Assets | `/grid.svg` returns 404. No favicon. `public/` is empty. | L |
-| QA-047 | Wallet | Placeholder WalletConnect `projectId` causes uncaught errors on every page. App name is "Polymarket Hedge Fund". | L |
-| QA-048 | Ticker | Marquee items are moving click targets. Chart modal shows random data labeled "LIVE". | L |
+| QA-047 | Wallet | Wallet connectors (WalletConnect, Coinbase WalletLink) open relay WebSockets on every page load, although no feature uses the wallet (`app/layout.tsx:35`). With the relays blocked in the sandbox, every page threw 3 uncaught errors; an open network was not tested. The `projectId` is the placeholder `YOUR_PROJECT_ID` (`lib/wagmi.ts:13`), which RainbowKit warns about and silently replaces with its shared example ID. App name is "Polymarket Hedge Fund" (`lib/wagmi.ts:12`). | L/C |
+| QA-048 | Ticker | Ticker prices are hardcoded (`ticker.tsx:28-55`), and items are click-only `div`s that keyboard users cannot reach (`ticker.tsx:15`). The chart modal plots `Math.random()` data labeled "LIVE_CHART" (`chart-modal.tsx:29,84`). | L/C |
 | QA-049 | Responsive | Not usable at 390 px. The sidebar eats the viewport. | L |
 | QA-050 | Config | `.env.example` mismatches: `ALPACA_SECRET` vs `ALPACA_SECRET_KEY`; `KALSHI_SECRET` vs `KALSHI_API_SECRET`/`KALSHI_KEY_ID`. A placeholder `GEMINI_API_KEY` makes health report Gemini configured. `ACCESS_TOKEN_EXPIRE_MINUTES` is ignored. | C |
-| QA-051 | Infra | Compose publishes Postgres, Redis (no auth), 8000 and 8080 on the host. Backend runs `--reload` with a source bind-mount. | C |
-| QA-052 | Infra | nginx has no WebSocket upgrade headers and doesn't disable buffering for SSE | C |
 | QA-053 | Docs | `frontend.md` lists React Query and Recharts, which are not installed. README implies `lfm-thinking` is served, but compose builds a mock. The YC plan's Q2 2026 "stabilize" outcome is unmet. | C |
 | QA-054 | Critic | Critic defaults to Ollama, but compose has no Ollama service | L |
 | QA-055 | Build | `pino-pretty` unresolved. 589 kB first-load JS on `/dashboard`. | L |
