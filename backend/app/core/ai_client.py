@@ -100,51 +100,115 @@ class GeminiProvider(AIProvider):
             return "Error parsing Gemini response"
 
 class LlamaCppProvider(AIProvider):
+    """llama.cpp's llama-server, through its OpenAI-compatible chat route.
+
+    The chat route applies the chat template stored in the GGUF; the raw
+    /completion route does not, so a chat-tuned model like LFM2.5 would see
+    untemplated text.
+    """
+
     def __init__(self, client: httpx.AsyncClient, host: str = "http://text-gen-cpp:8080"):
         super().__init__(client)
         self.host = host
 
-    async def generate(self, prompt: str, model: str = "lfm-thinking", **kwargs) -> str:
+    def _payload(self, prompt: str, model: str, stream: bool, kwargs: dict) -> dict:
+        n_predict = kwargs.get("n_predict", 2048)
         payload = {
-            "prompt": prompt,
-            "n_predict": kwargs.get("n_predict", 2048),
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "n_predict": n_predict,
             "temperature": kwargs.get("temperature", 0.2),
-            "stream": False
+            "stream": stream,
         }
-        if "json_schema" in kwargs:
+        if n_predict > 0:
+            # Thinking models spend tokens on <think> first; cap that at half the
+            # budget so an answer always fits (llama-server closes the block).
+            payload["reasoning_budget_tokens"] = max(n_predict // 2, 1)
+        if kwargs.get("json_schema") is not None:
             payload["json_schema"] = kwargs["json_schema"]
-        
+        return payload
+
+    async def generate(self, prompt: str, model: str = "lfm-thinking", **kwargs) -> str:
         response = await self._safe_request(
-            "POST", 
-            f"{self.host}/completion", 
-            json=payload,
+            "POST",
+            f"{self.host}/v1/chat/completions",
+            json=self._payload(prompt, model, False, kwargs),
             timeout=300.0
         )
-        return response.json().get("content", "").strip()
+        data = response.json()
+        try:
+            content = data["choices"][0]["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError, AttributeError):
+            content = data.get("content", "") if isinstance(data, dict) else ""
+        reasoning = ReasoningFilter()
+        return (reasoning.feed(content) + reasoning.flush()).strip()
 
     async def stream_generate(self, prompt: str, model: str = "lfm-thinking", **kwargs) -> AsyncIterator[str]:
-        payload = {
-            "prompt": prompt,
-            "n_predict": kwargs.get("n_predict", 2048),
-            "temperature": kwargs.get("temperature", 0.2),
-            "stream": True,
-        }
-        if "json_schema" in kwargs:
-            payload["json_schema"] = kwargs["json_schema"]
-
         async with self.client.stream(
             "POST",
-            f"{self.host}/completion",
-            json=payload,
+            f"{self.host}/v1/chat/completions",
+            json=self._payload(prompt, model, True, kwargs),
             timeout=300.0,
         ) as response:
             response.raise_for_status()
+            reasoning = ReasoningFilter()
             async for line in _iter_sse_lines(response):
                 token, done = parse_llama_cpp_stream_line(line)
                 if token:
-                    yield token
+                    token = reasoning.feed(token)
+                    if token:
+                        yield token
                 if done:
                     break
+            tail = reasoning.flush()
+            if tail:
+                yield tail
+
+
+class ReasoningFilter:
+    """Drops a leading <think>...</think> block from streamed model output.
+
+    llama-server moves thinking into `reasoning_content` only when the model's
+    chat template mentions <think>; otherwise LFM2.5 thinking models write it
+    into the answer itself. Feed chunks in order, then call flush() once.
+    """
+
+    OPEN, CLOSE = "<think>", "</think>"
+
+    def __init__(self):
+        self._state = "start"  # start -> thinking -> after_think -> answer
+        self._buffer = ""
+
+    def feed(self, chunk: str) -> str:
+        if self._state == "answer":
+            return chunk
+        self._buffer += chunk
+        if self._state == "start":
+            head = self._buffer.lstrip()
+            if not head or (len(head) < len(self.OPEN) and self.OPEN.startswith(head)):
+                return ""  # could still be the start of <think>
+            if not head.startswith(self.OPEN):
+                self._buffer = head  # leading blank lines are never answer text
+                return self._emit()
+            self._state, self._buffer = "thinking", head[len(self.OPEN):]
+        if self._state == "thinking":
+            _, closed, rest = self._buffer.partition(self.CLOSE)
+            if not closed:
+                return ""
+            self._state, self._buffer = "after_think", rest
+        # The answer usually starts with blank lines after </think>.
+        self._buffer = self._buffer.lstrip()
+        return self._emit() if self._buffer else ""
+
+    def flush(self) -> str:
+        if self._state == "thinking":
+            # Ran out of tokens while still thinking: there is no answer.
+            self._buffer = ""
+        return self._emit().lstrip() if self._state == "start" else self._emit()
+
+    def _emit(self) -> str:
+        self._state, text, self._buffer = "answer", self._buffer, ""
+        return text
 
 
 _SSE_LINE_BREAK = re.compile(r"\r\n|\r|\n")
@@ -170,13 +234,16 @@ class LlamaCppStreamError(RuntimeError):
 
 
 def parse_llama_cpp_stream_line(line: str) -> tuple[str, bool]:
-    """Return (token, done) for one line of a llama.cpp /completion stream.
+    """Return (token, done) for one line of a llama.cpp stream.
 
-    llama.cpp streams Server-Sent Events: `data: {"content": ..., "stop": false}`
-    per chunk, a final frame with `"stop": true`, `:` keep-alive comments,
-    `data: {"error": {...}}` on failure (older builds send an `error: {...}` line)
-    and `data: [DONE]` on its OpenAI-compatible routes. Bare JSON lines, as sent
-    by non-SSE servers such as text-gen-cpp-mock, are accepted too.
+    llama.cpp streams Server-Sent Events. On /v1/chat/completions each frame is
+    `data: {"choices": [{"delta": {"content": ...}, "finish_reason": null}]}`
+    (thinking arrives as `delta.reasoning_content`, which is not answer text),
+    the last one has a `finish_reason`, then `data: [DONE]`. On /completion a
+    frame is `data: {"content": ..., "stop": false}` and the last has
+    `"stop": true`. Both send `:` keep-alive comments and `data: {"error": {...}}`
+    on failure (older builds send an `error: {...}` line). Bare JSON lines, as
+    sent by non-SSE servers, are accepted too.
     """
     line = line.strip()
     if not line or line.startswith(":"):
@@ -199,6 +266,13 @@ def parse_llama_cpp_stream_line(line: str) -> tuple[str, bool]:
     if "error" in data:
         raise LlamaCppStreamError(json.dumps(data["error"]))
 
+    choices = data.get("choices")
+    if isinstance(choices, list):
+        choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+        message = choice.get("delta") or choice.get("message") or {}
+        token = message.get("content") if isinstance(message, dict) else None
+        return token if isinstance(token, str) else "", choice.get("finish_reason") is not None
+
     token = data.get("content") or data.get("token") or ""
     return token, data.get("stop") is True
 
@@ -214,7 +288,7 @@ class AIClient:
         ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
         self.providers["ollama"] = OllamaProvider(self.client, ollama_host)
         
-        llama_cpp_host = os.getenv("LLAMA_CPP_HOST", "http://172.19.0.3:8080")
+        llama_cpp_host = os.getenv("LLAMA_CPP_HOST", "http://text-gen-cpp:8080")
         self.providers["llama-cpp"] = LlamaCppProvider(self.client, llama_cpp_host)
         
         gemini_key = os.getenv("GEMINI_API_KEY")

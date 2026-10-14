@@ -1,13 +1,8 @@
-import os
-import httpx
+from app.core.ai_client import ai_client
 from app.strategy.models import StrategyGenerationRequest, StrategyCode
 from app.strategy.prompts import STRATEGY_GENERATION_PROMPT
 
 class StrategyFactory:
-    def __init__(self):
-        self.ollama_host = os.getenv("OLLAMA_HOST", "http://text-gen-cpp:8080")
-        self.llama_cpp_host = os.getenv("LLAMA_CPP_HOST", "http://text-gen-cpp:8080")
-
     async def generate_strategy(self, request: StrategyGenerationRequest) -> StrategyCode:
         prompt = STRATEGY_GENERATION_PROMPT.format(user_prompt=request.prompt)
         
@@ -31,23 +26,13 @@ class StrategyFactory:
         )
 
     async def _call_llm(self, prompt: str, model: str) -> str:
-        async with httpx.AsyncClient() as client:
-            try:
-                # Use Llama.cpp logic for all models now
-                url = f"{self.llama_cpp_host}/completion"
-                payload = {
-                    "prompt": prompt,
-                    "n_predict": 1024,
-                    "temperature": 0.2,
-                    "stop": ["[/INST]"]
-                }
-                response = await client.post(url, json=payload, timeout=45.0)
-                if response.status_code == 200:
-                     return response.json().get('content', '')
-            except Exception as e:
-                print(f"LLM Call Failed: {e}")
-                return ""
-        return ""
+        try:
+            # The local llama.cpp model, through the shared client (chat template,
+            # thinking removed) instead of raw /completion.
+            return await ai_client.generate(prompt, provider="llama-cpp", n_predict=1024)
+        except Exception as e:
+            print(f"LLM Call Failed: {e}")
+            return ""
 
     def _get_mock_strategy(self, prompt: str) -> StrategyCode:
         # Simple Mock for testing frontend integration

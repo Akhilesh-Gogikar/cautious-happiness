@@ -7,7 +7,7 @@ The Backend service is the "Central Nervous System" of the Alpha Insights Platfo
 - **Framework**: FastAPI (Python 3.11+)
 - **ORM**: SQLAlchemy (Async)
 - **Task Queue**: Celery + Redis
-- **LLM Routing**: Custom `AIClient` with a default llama.cpp-compatible provider (`text-gen-cpp`) and optional Ollama / Gemini adapters
+- **LLM Routing**: Custom `AIClient` with a default llama.cpp provider (`text-gen-cpp`, OpenAI-compatible chat route) and optional Ollama / Gemini adapters
 
 ## 2. Runtime model routing
 
@@ -16,8 +16,9 @@ The current checked-in backend runtime behaves as follows:
 - **Primary local provider**: `llama-cpp`, backed by `LLAMA_CPP_HOST=http://text-gen-cpp:8080` in Docker Compose.
 - **Primary local model**: `lfm-thinking`.
 - **Compatibility alias**: `openforecaster` is normalized to `lfm-thinking` in the intelligence service.
-- **Secondary fallback identifier**: `lfm-40b` is referenced by the fallback orchestrator, but is not provisioned by the default compose setup.
-- **Optional providers**: Ollama and Gemini adapters still exist in code for alternate deployments and verification flows.
+- **Secondary fallback identifier**: `lfm-40b` is referenced by the fallback orchestrator. With `OLLAMA_HOST` empty, as compose sets it, it runs on the same local llama.cpp model.
+- **Optional providers**: Ollama (used when `OLLAMA_HOST` is set) and Gemini (when `GEMINI_API_KEY` is set; the critic then prefers it).
+- **Thinking output**: `lfm-thinking` reasons inside `<think>` tags before answering. `LlamaCppProvider` caps that at half of `n_predict` (`reasoning_budget_tokens`) and drops it from the text it returns. Requests with a `json_schema` are constrained by llama-server's grammar, so the reply parses as JSON.
 
 ## 3. Directory Structure
 
@@ -40,12 +41,12 @@ backend/
 1. **Trigger**: User requests analysis or a scheduled job starts.
 2. **Orchestration**: The engine coordinates search, forecasting, and critique services.
 3. **Step 1 (Generate)**: Call the local llama.cpp-compatible service on `text-gen-cpp` and request the default `lfm-thinking` model.
-4. **Step 2 (Verify)**: Pass result to the Critic service (Gemini).
+4. **Step 2 (Verify)**: Pass result to the Critic service (the local model, or Gemini when configured).
 5. **Result**: If verified, save to DB. If rejected, discard.
 
 ### B. The Critic verification
 - **Input**: A claim string + citations.
-- **Process**: Gemini checks the trusted whitelist.
+- **Process**: The critic model (local `lfm-thinking`, or Gemini when configured) checks the trusted whitelist.
 - **Outcome**: `True` (Verified) or `False` (Hallucination).
 
 ### C. Fallback behavior
@@ -72,6 +73,6 @@ uvicorn app.main:app --reload
 4. Document whether the route expects `lfm-thinking`, an alias such as `openforecaster`, or a non-default provider.
 
 ## 6. Troubleshooting
-- **Local inference connection error**: Ensure the `text-gen-cpp` container is healthy and reachable at `http://localhost:8080` from the host or `http://text-gen-cpp:8080` in Docker.
-- **Unexpected model fallback**: Check whether your environment actually provisions `lfm-40b`; the default compose stack does not.
-- **Gemini auth error**: Check `GEMINI_API_KEY` in `.env`.
+- **Local inference connection error**: Ensure the `text-gen-cpp` container is healthy and reachable at `http://localhost:8080` from the host or `http://text-gen-cpp:8080` in Docker. It answers `/health` with 503 until the model has loaded; `docker compose logs text-gen-cpp` shows load errors. If it reports a bad model file, run `docker compose down`, remove the `ollama_downloads` volume (`docker volume ls` shows its full name) and start again so `setup_model` downloads the model afresh.
+- **Unexpected model fallback**: `lfm-40b` goes to Ollama only when `OLLAMA_HOST` is set; compose sets it empty, so it runs on the local llama.cpp model.
+- **Gemini auth error**: Check `GEMINI_API_KEY` in `.env`, or leave it empty to run the critic on the local model.

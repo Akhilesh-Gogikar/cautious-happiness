@@ -23,7 +23,8 @@ async def generate_text(prompt: str, model: str) -> str:
 
 async def generate_json(prompt: str, model: str, json_schema: dict | None = None):
     resolved_model, provider = resolve_model_provider(model)
-    return await ai_client.generate_json(prompt, provider=provider, model=resolved_model, json_schema=json_schema if resolved_model == "lfm-thinking" else None)
+    # llama-server constrains output to the schema; other providers ignore it.
+    return await ai_client.generate_json(prompt, provider=provider, model=resolved_model, json_schema=json_schema if provider == "llama-cpp" else None)
 
 
 async def stream_text(prompt: str, model: str) -> AsyncIterator[str]:

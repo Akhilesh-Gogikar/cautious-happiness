@@ -108,5 +108,8 @@ app.include_router(lifecycle_router)
 @app.get("/health")
 async def health_check():
     health_status = await get_system_health()
-    status = "ok" if all(health_status.values()) else "degraded"
+    # Gemini is optional (the critic falls back to the local model), so it is
+    # reported but does not make the stack degraded.
+    required = ("ollama", "redis", "database")
+    status = "ok" if all(health_status[name] for name in required) else "degraded"
     return {"status": status, "details": health_status}

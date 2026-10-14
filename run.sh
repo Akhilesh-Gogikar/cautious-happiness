@@ -48,7 +48,7 @@ echo "✅ System Online."
 echo "📊 Dashboard: http://localhost:3000"
 echo "🔌 API:       http://localhost:8000"
 
-echo "ℹ️  Note: The first run may take a few minutes to download the AI model (~5GB)."
+echo "ℹ️  Note: The first run may take a few minutes to download the AI model (~730 MB)."
 echo "   Check logs with: $DOCKER_COMPOSE logs -f setup_model"
 
 # Follow logs

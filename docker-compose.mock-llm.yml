@@ -1,0 +1,22 @@
+# Swaps the real model for a canned stand-in, so the stack runs without the
+# model download (CI, UI work, low-memory machines):
+#   docker compose -f docker-compose.yml -f docker-compose.mock-llm.yml up --build
+# Answers are fixed text and schema-shaped placeholders, not analysis.
+services:
+  setup_model:
+    # Not needed: nothing here reads the model volume.
+    profiles: ["real-model"]
+
+  text-gen-cpp:
+    image: !reset null
+    build:
+      context: ./text-gen-cpp-mock
+    volumes: !reset []
+    environment: !reset []
+    depends_on: !reset {}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

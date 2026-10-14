@@ -20,7 +20,12 @@ for entry in "${MODELS[@]}"; do
         echo "✅ $GGUF_FILE found and appears valid."
     else
         echo "⬇️  $GGUF_FILE not found or invalid. Downloading..."
-        curl -L -o "/models/$GGUF_FILE" "$DOWNLOAD_URL"
+        # Download to a temporary name and rename when complete, so an
+        # interrupted or failed download (-f: HTTP errors fail instead of saving
+        # the error page) is never mistaken for the model on the next start.
+        rm -f "/models/$GGUF_FILE.part"
+        curl -fL --retry 3 -o "/models/$GGUF_FILE.part" "$DOWNLOAD_URL"
+        mv "/models/$GGUF_FILE.part" "/models/$GGUF_FILE"
         echo "✅ Download complete."
     fi
 done
