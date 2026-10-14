@@ -78,6 +78,7 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 ### Access Points
 - **Terminal Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **From other machines**: through nginx on ports 80/443. Compose publishes the dashboard and API ports on `127.0.0.1` only, so the two links above work on the machine running the stack.
 
 ## Current Maturity Snapshot
 
