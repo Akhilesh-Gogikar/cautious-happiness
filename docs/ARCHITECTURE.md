@@ -16,8 +16,8 @@ Before reading the component breakdown, anchor on the current checked-in runtime
 
 ```mermaid
 graph TD
-    User[Trader / Risk Manager] -->|Interact| UI[Frontend Terminal (Next.js)]
-    UI -->|API Requests| API[Backend Engine (FastAPI)]
+    User[Trader / Risk Manager] -->|Interact| UI["Frontend Terminal (Next.js)"]
+    UI -->|API Requests| API["Backend Engine (FastAPI)"]
     
     subgraph "Core Logic"
         API -->|Task Queue| Worker[Celery Worker]
@@ -27,7 +27,7 @@ graph TD
     
     subgraph "Intelligence Layer"
         Worker -->|Generation Request| LlamaCpp[text-gen-cpp / llama.cpp llama-server]
-        Worker -->|Verification Request| Critic[The Critic (local model, or Gemini API if configured)]
+        Worker -->|Verification Request| Critic["The Critic (local model, or Gemini API if configured)"]
     end
 
     subgraph "External World"

@@ -124,6 +124,11 @@ def test_stream_accepts_bare_json_body_from_non_sse_servers():
     assert _stream(body) == ["I am a mock."]
 
 
+def test_stream_flushes_text_held_back_as_a_possible_think_tag():
+    # "<" could start "<think>", so it is held until the stream ends.
+    assert _stream(_chat_stream({"content": "<"})) == ["<"]
+
+
 def test_stream_drops_unfinished_thinking():
     # n_predict ran out inside <think>: there is no answer to show.
     assert _stream(_chat_stream({"content": "<think>"}, {"content": "still going"})) == []
@@ -186,6 +191,22 @@ def test_generate_passes_json_schema_and_budget():
     assert json.loads(text) == {"p": 0}
     assert requests[0]["json_schema"] == schema
     assert requests[0]["n_predict"] == 1024 and requests[0]["reasoning_budget_tokens"] == 512
+
+
+@pytest.mark.parametrize("n_predict", [0, -1])
+def test_generate_sends_no_reasoning_budget_without_a_token_limit(n_predict):
+    _, requests = _generate(_completion("x"), n_predict=n_predict)
+    assert "reasoning_budget_tokens" not in requests[0]
+
+
+def test_chat_stream_disables_proxy_buffering():
+    # nginx holds the whole reply until the model finishes without this header.
+    from app.models import ChatRequest, User
+    from app.routers.chat import chat_stream_endpoint
+
+    response = asyncio.run(chat_stream_endpoint(ChatRequest(question="Brent?"), User(username="analyst")))
+    assert response.headers["x-accel-buffering"] == "no"
+    assert response.media_type == "text/event-stream"
 
 
 def test_generate_omits_null_json_schema():

@@ -93,7 +93,7 @@ class IntelligenceService:
     async def search_semantic_correlations(self, question: str, model: str = "lfm-thinking") -> List[str]:
         prompt = f"[INST] TASK: Identify 3-5 semantically linked markets for: {question} [/INST]"
         try:
-            schema = {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 5}
+            schema = {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 3, "maxItems": 5}
             result = await generate_json(prompt, model=model, json_schema=schema)
             if isinstance(result, list):
                 return result

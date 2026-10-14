@@ -1,6 +1,13 @@
+import asyncio
+
 from app.core.ai_client import ai_client
 from app.strategy.models import StrategyGenerationRequest, StrategyCode
 from app.strategy.prompts import STRATEGY_GENERATION_PROMPT
+
+# One bounded wait: the shared client retries for up to ~15 minutes, but behind
+# nginx (proxy_read_timeout 330s) the caller must get the fallback before that.
+LLM_TIMEOUT_SECONDS = 300
+
 
 class StrategyFactory:
     async def generate_strategy(self, request: StrategyGenerationRequest) -> StrategyCode:
@@ -29,7 +36,10 @@ class StrategyFactory:
         try:
             # The local llama.cpp model, through the shared client (chat template,
             # thinking removed) instead of raw /completion.
-            return await ai_client.generate(prompt, provider="llama-cpp", n_predict=1024)
+            return await asyncio.wait_for(
+                ai_client.generate(prompt, provider="llama-cpp", n_predict=1024),
+                timeout=LLM_TIMEOUT_SECONDS,
+            )
         except Exception as e:
             print(f"LLM Call Failed: {e}")
             return ""

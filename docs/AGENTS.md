@@ -27,7 +27,7 @@ Always use the provided script which handles container orchestration.
 ```bash
 ./run.sh
 ```
-*Note: The first run downloads large models (~5GB). Be patient.*
+*Note: The first run downloads the `lfm-thinking` GGUF (about 730 MB). To skip it, use the mock: `docker compose -f docker-compose.yml -f docker-compose.mock-llm.yml up --build`.*
 
 ### C. Testing
 - **Backend**: `pytest` is the standard.

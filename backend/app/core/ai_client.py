@@ -276,6 +276,18 @@ def parse_llama_cpp_stream_line(line: str) -> tuple[str, bool]:
     token = data.get("content") or data.get("token") or ""
     return token, data.get("stop") is True
 
+def gemini_api_key() -> str | None:
+    """GEMINI_API_KEY, or None when it is unset or still a placeholder.
+
+    Older .env.example files shipped `your_gemini_api_key`, and run.sh never
+    rewrites an existing .env, so that value must not count as a key.
+    """
+    key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if not key or key.startswith("your_"):
+        return None
+    return key
+
+
 class AIClient:
     def __init__(self):
         # Persistent client for connection pooling
@@ -291,7 +303,7 @@ class AIClient:
         llama_cpp_host = os.getenv("LLAMA_CPP_HOST", "http://text-gen-cpp:8080")
         self.providers["llama-cpp"] = LlamaCppProvider(self.client, llama_cpp_host)
         
-        gemini_key = os.getenv("GEMINI_API_KEY")
+        gemini_key = gemini_api_key()
         if gemini_key:
             self.providers["gemini"] = GeminiProvider(self.client, gemini_key)
 

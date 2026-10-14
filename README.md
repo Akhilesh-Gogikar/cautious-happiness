@@ -35,7 +35,7 @@ The platform operates as a containerized microservices architecture:
 - **Frontend**: Next.js + React (Data Noir Design System)
 - **Backend**: FastAPI (Python) for orchestration and business logic
 - **Inference Engine**: `text-gen-cpp` (llama.cpp-compatible HTTP service) for the default local model path
-- **Verification Layer**: the Critic agent runs on the local model, or on the Google Gemini API when `GEMINI_API_KEY` is set
+- **Verification Layer**: the forecast critic runs on the local model, or on the Google Gemini API when `GEMINI_API_KEY` is set
 - **Data Layer**: PostgreSQL (Persistence) + Redis (Cache/Queue)
 
 For a detailed technical breakdown, please refer to [Architecture Deep Dive](docs/ARCHITECTURE.md).
@@ -44,8 +44,8 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 
 ### Prerequisites
 - **Docker & Docker Compose**: Essential for container orchestration.
-- **Memory**: roughly 1.5 GB free for the model server, on top of the app containers.
-- **Gemini API Key** (optional): when set, the **Critic** agent uses Gemini instead of the local model.
+- **Memory**: roughly 2 GB free for the model server, on top of the app containers.
+- **Gemini API Key** (optional): when set, the forecast critic (the Neural Audit critique) uses Gemini, falling back to the local model if Gemini fails. Insight scoring always uses the local model.
 
 ### Installation
 
@@ -58,7 +58,7 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 2.  **Configuration**
     The system creates a `.env` file on first run. Fill in the credentials you need; the local model needs none.
     ```bash
-    # Optional: run the 'Critic' agent on Gemini instead of the local model
+    # Optional: run the forecast critic on Gemini instead of the local model
     GEMINI_API_KEY=
     
     # Optional: Polymarket execution

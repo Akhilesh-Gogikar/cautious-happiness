@@ -38,6 +38,8 @@ services:
       - LLAMA_ARG_PORT=8080
       # Total context, shared by the server's parallel slots.
       - LLAMA_ARG_CTX_SIZE=32768
+      # Cap the prompt cache (MiB of host RAM); llama-server's default is 8 GiB.
+      - LLAMA_ARG_CACHE_RAM=256
     # Reachable from this machine only; the app talks to it over the compose network.
     ports:
       - "127.0.0.1:8080:8080"

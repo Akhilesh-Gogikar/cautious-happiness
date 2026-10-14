@@ -39,7 +39,10 @@ class ChatCompletionRequest(BaseModel):
 
 
 def _sample(schema: dict):
-    """Smallest value matching the schema, as llama-server's grammar would force."""
+    """A small value of the schema's shape (types, required keys, enum, minItems).
+
+    Placeholder data only; other constraints such as ranges are ignored.
+    """
     if "enum" in schema:
         return schema["enum"][0]
     kind = schema.get("type", "object")
@@ -48,7 +51,9 @@ def _sample(schema: dict):
     if kind == "object":
         props = schema.get("properties", {})
         return {name: _sample(props[name]) for name in schema.get("required", []) if name in props}
-    return {"string": "mock", "number": 0.5, "integer": 0, "boolean": False, "array": [], "null": None}.get(kind)
+    if kind == "array":
+        return [_sample(schema.get("items", {"type": "string"})) for _ in range(schema.get("minItems", 0))]
+    return {"string": "mock", "number": 0.5, "integer": 0, "boolean": False, "null": None}.get(kind)
 
 
 async def _simulate_latency():
