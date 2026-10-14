@@ -21,7 +21,6 @@ import { useRouter } from "next/navigation";
 export function SettingsModal() {
     const [model, setModel] = useState(DEFAULT_LLM_MODEL);
     const [llamaCppUrl, setLlamaCppUrl] = useState(DEFAULT_LLAMA_CPP_URL);
-    const [geminiKey, setGeminiKey] = useState("");
     const [alpacaKey, setAlpacaKey] = useState("");
     const [alpacaSecret, setAlpacaSecret] = useState("");
     const { user, toggleRole, logout } = useAuth();
@@ -35,16 +34,15 @@ export function SettingsModal() {
 
         const storedModel = localStorage.getItem("POLY_MODEL");
         const storedLlamaCppUrl = localStorage.getItem("LLAMA_CPP_URL");
-        const storedGeminiKey = localStorage.getItem("POLY_GEMINI_KEY");
         if (storedModel) setModel(storedModel);
         if (storedLlamaCppUrl) setLlamaCppUrl(storedLlamaCppUrl);
-        if (storedGeminiKey) setGeminiKey(storedGeminiKey);
+        // Earlier versions kept a Gemini key here that nothing used; drop it.
+        localStorage.removeItem("POLY_GEMINI_KEY");
     }, []);
 
     const handleSave = () => {
         localStorage.setItem("POLY_MODEL", model || DEFAULT_LLM_MODEL);
         localStorage.setItem("LLAMA_CPP_URL", llamaCppUrl || DEFAULT_LLAMA_CPP_URL);
-        if (geminiKey) localStorage.setItem("POLY_GEMINI_KEY", geminiKey);
 
         if (alpacaKey) localStorage.setItem("ALPACA_API_KEY", alpacaKey);
         if (alpacaSecret) localStorage.setItem("ALPACA_SECRET_KEY", alpacaSecret);
@@ -148,18 +146,11 @@ export function SettingsModal() {
                             <p className="text-[10px] text-muted-foreground">Provider: <span className="text-white">{DEFAULT_LLM_PROVIDER}</span> (fallback for all local model requests)</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="gemini" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Gemini API Key (Critic)
-                            </Label>
-                            <Input
-                                id="gemini"
-                                type="password"
-                                value={geminiKey}
-                                onChange={(e) => setGeminiKey(e.target.value)}
-                                placeholder="Ex: AIzaSy..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Gemini (Critic)</p>
+                            <p className="text-[10px] text-muted-foreground">
+                                Set on the server with <span className="text-white">GEMINI_API_KEY</span> in <span className="text-white">.env</span>. Without it the critic uses the local model.
+                            </p>
                         </div>
                     </div>
                 </div>

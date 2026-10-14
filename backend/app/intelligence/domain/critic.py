@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import List
 
-from app.core.ai_client import ai_client
+from app.core.ai_client import ai_client, gemini_model
 from app.intelligence.domain.dtypes import StructuredCriticResult
 from app.models import Source
 
@@ -51,17 +51,22 @@ OUTPUT SCHEMA (STRICT JSON):
             result.score = min(1.0, max(0.0, result.score))
             return result
         except Exception as exc:
+            # Users see this text and it is stored with the forecast, so it names
+            # the error type only; the details go to the server log.
+            logger.warning(f"Critic unavailable ({type(exc).__name__}): {exc}")
             return StructuredCriticResult(
-                critique=f"Critic unavailable: {exc}",
+                critique=f"Critic unavailable ({type(exc).__name__}).",
                 score=initial_prob,
-                risk_factors=[f"System Error: {exc}"],
+                risk_factors=[f"System Error: {type(exc).__name__}"],
             )
 
     async def _critique(self, prompt: str) -> StructuredCriticResult:
         if "gemini" in ai_client.providers:
             try:
                 return StructuredCriticResult(
-                    **await ai_client.generate_json(prompt, provider="gemini", model="gemini-1.5-flash")
+                    **await ai_client.generate_json(
+                        prompt, provider="gemini", model=gemini_model(), json_schema=CRITIC_SCHEMA
+                    )
                 )
             except Exception as exc:
                 # Log the type only; the message can include request details.

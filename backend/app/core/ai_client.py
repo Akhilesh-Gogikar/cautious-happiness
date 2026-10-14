@@ -78,19 +78,52 @@ class OllamaProvider(AIProvider):
                 if token:
                     yield token
 
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+# Follows the newest Gemini Flash release, so a retired model name cannot break
+# the critic again; set GEMINI_MODEL to pin a version (e.g. gemini-3.8-flash).
+DEFAULT_GEMINI_MODEL = "gemini-flash-latest"
+_GEMINI_MODEL_NAME = re.compile(r"^gemini-[a-z0-9.-]+$")
+# Names this codebase used that Google has since retired.
+_RETIRED_GEMINI_MODELS = {"gemini-pro", "gemini-1.0-pro"}
+_RETIRED_GEMINI_PREFIXES = ("gemini-1.0-", "gemini-1.5-")
+
+
+def gemini_model(requested: str | None = None) -> str:
+    """The Gemini model to call: `requested` if it names a current Gemini model,
+    otherwise GEMINI_MODEL, otherwise DEFAULT_GEMINI_MODEL."""
+
+    def usable(name: str | None) -> bool:
+        return bool(
+            name
+            and _GEMINI_MODEL_NAME.match(name)
+            and name not in _RETIRED_GEMINI_MODELS
+            and not name.startswith(_RETIRED_GEMINI_PREFIXES)
+        )
+
+    if usable(requested):
+        return requested
+    configured = (os.getenv("GEMINI_MODEL") or "").strip()
+    return configured if usable(configured) else DEFAULT_GEMINI_MODEL
+
+
 class GeminiProvider(AIProvider):
     def __init__(self, client: httpx.AsyncClient, api_key: str):
         super().__init__(client)
-        self.api_key = api_key
-        self.url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_key}"
+        # A header, never the query string: request URLs end up in logs and in
+        # httpx error messages.
+        self.headers = {"x-goog-api-key": api_key}
 
-    async def generate(self, prompt: str, model: str = "gemini-pro", **kwargs) -> str:
+    async def generate(self, prompt: str, model: str | None = None, **kwargs) -> str:
+        body = {"contents": [{"parts": [{"text": prompt}]}]}
+        if kwargs.get("json_schema") is not None:
+            # The caller parses the reply as JSON; this stops Gemini wrapping it
+            # in Markdown fences.
+            body["generationConfig"] = {"responseMimeType": "application/json"}
         response = await self._safe_request(
             "POST",
-            self.url,
-            json={
-                "contents": [{"parts": [{"text": prompt}]}]
-            },
+            f"{GEMINI_API_BASE}/{gemini_model(model)}:generateContent",
+            json=body,
+            headers=self.headers,
             timeout=60.0
         )
         data = response.json()

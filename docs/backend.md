@@ -17,7 +17,7 @@ The current checked-in backend runtime behaves as follows:
 - **Primary local model**: `lfm-thinking`.
 - **Compatibility alias**: `openforecaster` is normalized to `lfm-thinking` in the intelligence service.
 - **Secondary fallback identifier**: `lfm-40b` is referenced by the fallback orchestrator. With `OLLAMA_HOST` empty, as compose sets it, it runs on the same local llama.cpp model.
-- **Optional providers**: Ollama (used when `OLLAMA_HOST` is set) and Gemini (when `GEMINI_API_KEY` is set; the critic then prefers it).
+- **Optional providers**: Ollama (used when `OLLAMA_HOST` is set) and Gemini (when `GEMINI_API_KEY` is set; the critic then prefers it, falling back to the local model if Gemini fails). Gemini calls use `GEMINI_MODEL`, default `gemini-flash-latest`, which follows Google's newest Flash release; pin a version such as `gemini-3.8-flash` for reproducible critiques. The key is sent in the `x-goog-api-key` header, never in a URL.
 - **Thinking output**: `lfm-thinking` reasons inside `<think>` tags before answering. `LlamaCppProvider` caps that at half of `n_predict` (`reasoning_budget_tokens`) and drops it from the text it returns. Requests with a `json_schema` are constrained by llama-server's grammar, so the reply parses as JSON.
 
 ## 3. Directory Structure
