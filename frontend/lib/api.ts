@@ -99,6 +99,21 @@ export async function analyzeMirrorTarget(targetId: string): Promise<MirrorAnaly
     });
 }
 
+export interface AlpacaStatus {
+    configured: boolean;
+    paper: boolean;
+}
+
+/** Whether the server holds Alpaca credentials (they live only on the server). */
+export async function fetchAlpacaStatus(): Promise<AlpacaStatus> {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/tools/alpaca/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return res.json();
+}
+
 export async function fetchSystemHealth(): Promise<SystemHealth> {
     const res = await fetch(`${API_URL}/health`);
     if (!res.ok) throw new Error('Failed to fetch system health');

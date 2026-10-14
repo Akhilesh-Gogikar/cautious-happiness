@@ -21,16 +21,13 @@ import { useRouter } from "next/navigation";
 export function SettingsModal() {
     const [model, setModel] = useState(DEFAULT_LLM_MODEL);
     const [llamaCppUrl, setLlamaCppUrl] = useState(DEFAULT_LLAMA_CPP_URL);
-    const [alpacaKey, setAlpacaKey] = useState("");
-    const [alpacaSecret, setAlpacaSecret] = useState("");
     const { user, toggleRole, logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        const storedAlpacaKey = localStorage.getItem("ALPACA_API_KEY");
-        const storedAlpacaSecret = localStorage.getItem("ALPACA_SECRET_KEY");
-        if (storedAlpacaKey) setAlpacaKey(storedAlpacaKey);
-        if (storedAlpacaSecret) setAlpacaSecret(storedAlpacaSecret);
+        // Credentials live on the server now; drop copies earlier versions kept here.
+        localStorage.removeItem("ALPACA_API_KEY");
+        localStorage.removeItem("ALPACA_SECRET_KEY");
 
         const storedModel = localStorage.getItem("POLY_MODEL");
         const storedLlamaCppUrl = localStorage.getItem("LLAMA_CPP_URL");
@@ -44,8 +41,6 @@ export function SettingsModal() {
         localStorage.setItem("POLY_MODEL", model || DEFAULT_LLM_MODEL);
         localStorage.setItem("LLAMA_CPP_URL", llamaCppUrl || DEFAULT_LLAMA_CPP_URL);
 
-        if (alpacaKey) localStorage.setItem("ALPACA_API_KEY", alpacaKey);
-        if (alpacaSecret) localStorage.setItem("ALPACA_SECRET_KEY", alpacaSecret);
     };
 
     const handleLogout = () => {
@@ -91,31 +86,11 @@ export function SettingsModal() {
                     <div className="space-y-4">
                         <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1">Provider Config</Label>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="alpaca-key" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Alpaca API Key
-                            </Label>
-                            <Input
-                                id="alpaca-key"
-                                type="password"
-                                value={alpacaKey}
-                                onChange={(e) => setAlpacaKey(e.target.value)}
-                                placeholder="PK..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="alpaca-secret" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Alpaca Secret Key
-                            </Label>
-                            <Input
-                                id="alpaca-secret"
-                                type="password"
-                                value={alpacaSecret}
-                                onChange={(e) => setAlpacaSecret(e.target.value)}
-                                placeholder="..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Alpaca</p>
+                            <p className="text-[10px] text-muted-foreground">
+                                Set on the server with <span className="text-white">ALPACA_API_KEY</span> and <span className="text-white">ALPACA_SECRET_KEY</span> in <span className="text-white">.env</span>. Paper trading unless <span className="text-white">ALPACA_BASE_URL</span> points at the live API.
+                            </p>
                         </div>
 
                         <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1 mt-4">Model Config</Label>

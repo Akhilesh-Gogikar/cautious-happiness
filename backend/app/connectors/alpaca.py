@@ -11,9 +11,18 @@ logger = logging.getLogger(__name__)
 class AlpacaConnector(BaseConnector):
     def __init__(self, api_key: Optional[str] = None, secret_key: Optional[str] = None, base_url: Optional[str] = None):
         self.api_key = api_key or os.getenv("ALPACA_API_KEY")
-        self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY")
+        # ALPACA_SECRET is the name older .env.example files used.
+        self.secret_key = secret_key or os.getenv("ALPACA_SECRET_KEY") or os.getenv("ALPACA_SECRET")
         self.base_url = base_url or os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
         self.client: Optional[TradingClient] = None
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key and self.secret_key)
+
+    @property
+    def paper(self) -> bool:
+        return "paper" in self.base_url
 
     async def connect(self):
         if not self.api_key or not self.secret_key:
@@ -22,7 +31,7 @@ class AlpacaConnector(BaseConnector):
         
         try:
             # alpaca-py TradingClient is synchronous, but we'll use it within our async connector
-            self.client = TradingClient(self.api_key, self.secret_key, paper=True if "paper" in self.base_url else False)
+            self.client = TradingClient(self.api_key, self.secret_key, paper=self.paper)
             logger.info("Alpaca connection established.")
         except Exception as e:
             logger.error(f"Failed to connect to Alpaca: {e}")
