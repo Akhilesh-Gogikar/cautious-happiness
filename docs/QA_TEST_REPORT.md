@@ -6,7 +6,7 @@
 | **Commit tested** | `eb728a0` (`main`) |
 | **Scope** | Every frontend route, every dashboard view, every global UI component, every mounted backend endpoint, the Celery prediction pipeline, the WebSocket lifecycle stream, and the existing automated test suites |
 | **Companion document** | [Product Management Plan](PRODUCT_MANAGEMENT_PLAN.md), which turns these findings into a per-feature plan |
-| **Fix status** | QA-001, QA-002, QA-008, QA-009, QA-010, QA-024, QA-041, QA-051, QA-052 and QA-054 fixed and QA-033, QA-040, QA-050, QA-053 partly fixed on this branch after the test pass; see [§9 Fix status](#9-fix-status). Everything else is as tested. |
+| **Fix status** | QA-001, QA-002, QA-008, QA-009, QA-010, QA-024, QA-041, QA-051, QA-052 and QA-054 fixed and QA-011, QA-033, QA-040, QA-050, QA-053 partly fixed on this branch after the test pass; see [§9 Fix status](#9-fix-status). Everything else is as tested. |
 
 ## 1. Executive summary
 
@@ -316,6 +316,7 @@ Fixed on this branch after the test pass. Each fix was re-tested on the same sta
 | QA-024 | Fixed | `7c49faf` | The Gemini key is sent in a request header instead of the URL, so it no longer appears in logs or error text, and the critic's user-visible failure text names only the error type. Calls go to the requested model or `GEMINI_MODEL` (default `gemini-flash-latest`) instead of the retired `gemini-pro`, and JSON calls request a JSON response. The settings dialog no longer collects a Gemini key in the browser and clears any stored copy. Rotate any Gemini key configured before this change. |
 | QA-040 | Partly fixed | `7c49faf`, `be73a3f` | No secrets are kept in browser storage any more: the Gemini and Alpaca key fields are gone from the settings dialog, which clears copies stored by earlier versions; the keys are read only from the server's environment. The unused llama.cpp URL setting and the missing save feedback remain. |
 | QA-041 | Fixed | `be73a3f` | The Alpaca view asks the server whether it is configured and, if not, says which server settings to add, instead of pointing to the settings dialog. |
+| QA-011 | Partly fixed | `0605196` | Only the admin and trader roles can place Alpaca orders through `/tools/call` (deny-by-default: only the read-only account and positions tools are open to every signed-in user); others get 403 before Alpaca is contacted. Order attempts are logged with user and role, but there is no stored audit trail. The check relies on real sign-in: with `ALLOW_DEMO_AUTH` on, anonymous callers are admins (QA-003). |
 | QA-050 | Partly fixed | `21f891f`, `87b21b9`, `be73a3f` | `.env.example` no longer ships a placeholder `GEMINI_API_KEY`, and the old placeholder no longer counts as a configured key; `LLAMA_CPP_HOST` points at the model server. The Alpaca names match the code (`ALPACA_SECRET_KEY`, plus `ALPACA_BASE_URL`), and the old `ALPACA_SECRET` name is still accepted. The Kalshi mismatch and `ACCESS_TOKEN_EXPIRE_MINUTES` remain. |
 | QA-053 | Partly fixed | `21f891f`, `87b21b9` | README and architecture docs describe the real model server and the mock override. The `frontend.md` and YC-plan points remain. |
 
