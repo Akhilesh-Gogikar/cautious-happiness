@@ -6,7 +6,7 @@
 | **Commit tested** | `eb728a0` (`main`) |
 | **Scope** | Every frontend route, every dashboard view, every global UI component, every mounted backend endpoint, the Celery prediction pipeline, the WebSocket lifecycle stream, and the existing automated test suites |
 | **Companion document** | [Product Management Plan](PRODUCT_MANAGEMENT_PLAN.md), which turns these findings into a per-feature plan |
-| **Fix status** | QA-001, QA-002, QA-008 and QA-009 fixed and QA-033, QA-052 partly fixed on this branch after the test pass; see [§9 Fix status](#9-fix-status). Everything else is as tested. |
+| **Fix status** | QA-001, QA-002, QA-008, QA-009, QA-010, QA-052 and QA-054 fixed and QA-033, QA-050, QA-051, QA-053 partly fixed on this branch after the test pass; see [§9 Fix status](#9-fix-status). Everything else is as tested. |
 
 ## 1. Executive summary
 
@@ -282,7 +282,7 @@ There is no Docker daemon in the test sandbox, so the compose topology was repro
 These need the real environment:
 
 - **Live external data**: DuckDuckGo search, RSS news, Yahoo and Stooq quotes, Polymarket and Kalshi, and FinBERT/bge-m3 model loading. The sandbox network blocks them.
-- **The real `lfm-thinking` GGUF on llama.cpp.** Not provisioned by compose (QA-010); emulated at the wire-format level instead.
+- **The real `lfm-thinking` GGUF on llama.cpp.** Compose now serves it (QA-010), but the download is blocked in the sandbox. The integration was checked against `llama-server` built from the pinned tag with a small LFM2-architecture model instead; answer quality and latency of the real model are untested.
 - **Gemini critic against Google's API**, which needs a real key.
 - **Alpaca paper trading**, which needs real keys. The RBAC gap (QA-011) was confirmed up to the connector boundary.
 - **The full Docker Compose stack plus nginx/TLS.** No Docker daemon in the sandbox. The nginx findings come from config review.
@@ -309,6 +309,11 @@ Fixed on this branch after the test pass. Each fix was re-tested on the same sta
 | QA-033 | Partly fixed | `9e55ae3` | FinBERT and bge-m3 load on first use, off the event loop, not at import. Offline, sentiment is still neutral and the demo embedder still falls back to a constant vector. |
 | QA-009 | Fixed | `f4db43f` | The llama.cpp stream parser follows llama-server's SSE format (checked against llama.cpp source); mid-stream model errors reach the UI as errors; SSE output is valid JSON for any token. All four chat surfaces return replies. |
 | QA-008 | Fixed | `1c64685` | The lifecycle socket no longer crashes; it reports `complete` only once the result is readable, reports crashed or revoked tasks as `failed`, and releases its Redis subscription on disconnect, timeout or Redis outage. The Neural Audit renders a result in about 1 s with a JSON-capable model. |
-| QA-052 | Partly fixed | `1c64685` | nginx forwards WebSocket upgrades on `/api/ws/`. SSE responses are still buffered by nginx. |
+| QA-052 | Fixed | `1c64685`, `21f891f` | nginx forwards WebSocket upgrades on `/api/ws/`. The chat stream sends `X-Accel-Buffering: no`, so nginx passes tokens through as they arrive (checked through the repo's nginx config: 0.5 s apart with the header, all at the end without it). |
+| QA-010 | Fixed | `21f891f`, `87b21b9` | Compose runs llama.cpp's `llama-server` (pinned `server-b11243`) on the downloaded LFM2.5-1.2B-Thinking GGUF; the canned mock moved to `docker-compose.mock-llm.yml`. The backend uses the server's chat route, so the model's chat template applies, removes `<think>` reasoning from answers, caps thinking at half of `n_predict`, and sends a JSON schema with every JSON request. Verified against `llama-server` built from the same tag, with a small LFM2-architecture GGUF and both template variants: chat, chat stream, strategy and a full forecast. The real 730 MB GGUF could not be downloaded in the sandbox. |
+| QA-054 | Fixed | `21f891f`, `87b21b9` | The critic runs on the local model with a JSON schema when no Gemini key is set (an old placeholder key counts as unset) and when Gemini fails, instead of calling a nonexistent Ollama. Its score is clamped to 0–1. |
+| QA-051 | Partly fixed | `21f891f` | The model server's port is published on `127.0.0.1` only. Postgres, Redis, backend and frontend ports, `--reload` and the source bind mounts are unchanged. |
+| QA-050 | Partly fixed | `21f891f`, `87b21b9` | `.env.example` no longer ships a placeholder `GEMINI_API_KEY`, and the old placeholder no longer counts as a configured key; `LLAMA_CPP_HOST` points at the model server. The Alpaca/Kalshi name mismatches and `ACCESS_TOKEN_EXPIRE_MINUTES` remain. |
+| QA-053 | Partly fixed | `21f891f`, `87b21b9` | README and architecture docs describe the real model server and the mock override. The `frontend.md` and YC-plan points remain. |
 
 Regression gates 3 and 4 in §8 are now covered by automated tests (`tests/test_lifecycle_ws.py`, `tests/test_llama_cpp_stream.py`); gates 1, 2, 5 and 6 remain open.
