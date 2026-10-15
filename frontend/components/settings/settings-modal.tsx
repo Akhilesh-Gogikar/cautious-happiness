@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 export function SettingsModal() {
     const [model, setModel] = useState(DEFAULT_LLM_MODEL);
     const [llamaCppUrl, setLlamaCppUrl] = useState(DEFAULT_LLAMA_CPP_URL);
-    const { user, toggleRole, logout } = useAuth();
+    const { user, logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -66,20 +66,13 @@ export function SettingsModal() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto">
-                    {/* Role Switcher for Admin Only */}
-                    {user?.email.toLowerCase() === 'aki@onenew.ai' && (
-                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-3">
+                    {user && (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
                             <Label className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center justify-between">
-                                <span>Demo Controls</span>
-                                <span className="text-white/50 lowercase tracking-normal bg-black/50 px-2 py-0.5 rounded border border-white/10">Active: {user.role}</span>
+                                <span>Signed In</span>
+                                <span className="text-white/50 lowercase tracking-normal bg-black/50 px-2 py-0.5 rounded border border-white/10">{user.serverRole}</span>
                             </Label>
-                            <Button
-                                variant="outline"
-                                onClick={toggleRole}
-                                className="w-full text-xs font-mono border-primary/30 hover:bg-primary hover:text-black transition-colors"
-                            >
-                                Switch to {user.role === 'Admin' ? 'User' : 'Admin'} Role
-                            </Button>
+                            <p className="mt-2 text-xs text-white font-mono">{user.username}</p>
                         </div>
                     )}
 

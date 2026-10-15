@@ -29,6 +29,9 @@ if [ ! -f .env ]; then
     if [ -f .env.example ]; then
         echo "⚠️ No .env file found. Creating from .env.example..."
         cp .env.example .env
+        # A private key for signing sign-in tokens (never the placeholder).
+        SECRET_KEY=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+        sed -i.bak "s/^SECRET_KEY=.*/SECRET_KEY=$SECRET_KEY/" .env && rm -f .env.bak
         echo "📝 Please edit .env with your API Keys!"
     else 
         echo "⚠️ No .env or .env.example found. Creating default..."

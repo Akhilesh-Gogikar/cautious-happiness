@@ -3,6 +3,8 @@ import { Send, Play, Save, Terminal } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { Button } from '@/components/ui/button'; // Assuming shadcn/ui or similar
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/auth/session';
 
 interface Message {
     role: 'user' | 'ai';
@@ -27,7 +29,7 @@ export function StrategyBuilder() {
         setLoading(true);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/strategy/generate`, {
+            const res = await apiFetch(`${API_URL}/strategy/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: prompt, model: 'lfm-40b' }),

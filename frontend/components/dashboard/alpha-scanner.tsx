@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Zap, Target, Activity, Loader2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/auth/session';
 
 interface ScanResult {
     symbol: string;
@@ -41,9 +43,8 @@ export function AlphaScanner() {
             if (assetClass !== 'all') params.append('asset_class', assetClass);
             if (sector !== 'all') params.append('sector', sector);
 
-            // Need an absolute API call since this might run in a different frontend port than the backend
-            // typically the frontend sets a proxy or we can just call it (assuming backend runs on 8000)
-            const response = await fetch(`http://localhost:8000/api/v1/scanner/assets?${params.toString()}`);
+            // The scanner's own routes start with /api/v1, after the API base.
+            const response = await apiFetch(`${API_URL}/api/v1/scanner/assets?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to fetch data');
             const data = await response.json();
             setAssets(data);

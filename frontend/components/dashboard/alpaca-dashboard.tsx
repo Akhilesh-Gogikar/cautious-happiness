@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, TrendingUp, BarChart3, AlertCircle, RefreshCw } from "lucide-react";
 import { API_URL, fetchAlpacaStatus } from "@/lib/api";
+import { apiFetch } from "@/lib/auth/session";
 
 const NOT_CONFIGURED = "Alpaca is not configured on the server. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in the server's .env.";
 
@@ -35,12 +36,10 @@ export function AlpacaDashboard() {
         setLoading(true);
         setError(null);
         try {
-            // The server holds the Alpaca credentials; only the session token is sent.
-            const token = localStorage.getItem('token');
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            // The server holds the Alpaca credentials; apiFetch sends the session token.
+            const headers = { 'Content-Type': 'application/json' };
 
-            const accountResp = await fetch(`${API_URL}/tools/call`, {
+            const accountResp = await apiFetch(`${API_URL}/tools/call`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'get_account', arguments: {} })
@@ -53,7 +52,7 @@ export function AlpacaDashboard() {
                 setError(accountResp.status === 503 ? NOT_CONFIGURED : "Failed to fetch the Alpaca account. Check the server's Alpaca credentials.");
             }
 
-            const positionsResp = await fetch(`${API_URL}/tools/call`, {
+            const positionsResp = await apiFetch(`${API_URL}/tools/call`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'list_positions', arguments: {} })

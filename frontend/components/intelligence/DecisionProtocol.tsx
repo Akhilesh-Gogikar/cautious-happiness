@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, ShieldAlert, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AnalysisResult } from "./types";
+import { API_URL } from "@/lib/api";
+import { apiFetch } from "@/lib/auth/session";
 
 interface DecisionProtocolProps {
     analysis: AnalysisResult;
@@ -27,12 +29,10 @@ export function DecisionProtocol({ analysis, symbol = "BRENT" }: DecisionProtoco
     const handleExecute = async (side: 'buy' | 'sell') => {
         setIsExecuting(true);
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            const response = await fetch(`${API_URL}/trade/execute`, {
+            const response = await apiFetch(`${API_URL}/trade/execute`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Assuming auth is handled via cookies or common middleware
                 },
                 body: JSON.stringify({
                     symbol,
