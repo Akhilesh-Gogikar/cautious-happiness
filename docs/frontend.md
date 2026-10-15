@@ -53,7 +53,11 @@ npm ci
 npm run dev
 ```
 
+Open the dev server at http://localhost:3000 (or 127.0.0.1). `next dev` serves its dev resources only to localhost and the origins in `allowedDevOrigins` (`next.config.js`); opened from another host or a LAN IP, the page loads but never becomes interactive until that origin is added there.
+
 Checks: `npm run lint` (ESLint, `eslint.config.mjs`) and `npm run build`. `next build` type-checks but no longer lints. For a standalone type-check on a fresh checkout, run `npx next typegen` first, then `npx tsc --noEmit`.
+
+Change dependencies with npm 11 (Node 24): it records each native package's libc in `package-lock.json`, so the Alpine image installs only the musl builds. npm 10 drops those fields.
 
 ### Adding a Page
 1.  Create `app/dashboard/new-feature/page.tsx`.

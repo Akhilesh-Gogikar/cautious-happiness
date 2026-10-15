@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // next dev serves its dev resources (HMR, chunks) only to these origins and
+    // localhost; without them a page opened at 127.0.0.1 never becomes interactive.
+    allowedDevOrigins: ['127.0.0.1'],
+    // Agent guidance lives in docs/AGENTS.md; don't let next dev write frontend/AGENTS.md.
+    agentRules: false,
     async rewrites() {
         return [
             {
