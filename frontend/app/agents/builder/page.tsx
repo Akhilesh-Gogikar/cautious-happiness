@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Sidebar } from '@/components/ui/sidebar';
 import { SettingsModal } from '@/components/settings/settings-modal';
 import { NotificationCenter } from '@/components/layout/notification-center';
@@ -76,11 +75,6 @@ export default function AgentBuilderPage() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <ConnectButton
-                                accountStatus={{ smallScreen: 'avatar', largeScreen: 'full' }}
-                                showBalance={false}
-                                chainStatus="icon"
-                            />
                             <NotificationCenter />
                             <SettingsModal />
                         </div>

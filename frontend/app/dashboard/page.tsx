@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { MarketTable } from '@/components/dashboard/market-table';
 import { DataMatrix } from '@/components/dashboard/data-matrix-feed';
 import { StatCards } from '@/components/dashboard/stat-cards';
@@ -122,14 +121,6 @@ export default function Home() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <ConnectButton
-                                    accountStatus={{
-                                        smallScreen: 'avatar',
-                                        largeScreen: 'full',
-                                    }}
-                                    showBalance={false}
-                                    chainStatus="icon"
-                                />
                                 <NotificationCenter />
                                 <SettingsModal />
                             </div>
