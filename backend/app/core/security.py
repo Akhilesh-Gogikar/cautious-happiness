@@ -18,7 +18,10 @@ _PUBLIC_SECRET_KEYS = {"", "dev_secret_key_change_in_prod_73847384", "generate_a
 def _load_secret_key() -> str:
     key = (os.getenv("SECRET_KEY") or "").strip()
     if key in _PUBLIC_SECRET_KEYS:
-        logger.warning("SECRET_KEY is not set; using a random key, so sign-ins end when the server restarts.")
+        logger.warning(
+            "SECRET_KEY is unset or a public placeholder; using a random key, so sign-ins end "
+            "when the server restarts. Set a long random SECRET_KEY in .env."
+        )
         return secrets.token_urlsafe(64)
     return key
 

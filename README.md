@@ -84,6 +84,9 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **From other machines**: through nginx on ports 80/443. Compose publishes the dashboard and API ports on `127.0.0.1` only, so the two links above work on the machine running the stack.
 
+### Signing in
+The dashboard signs in against the backend. It ships with four development accounts: `admin` (sees the admin-only views), `trader`, `analyst` and `risk` (risk manager). Their passwords are development defaults set in `backend/app/services/user_service.py`; change them before anyone else can reach the app. Sessions last `ACCESS_TOKEN_EXPIRE_MINUTES` (from `.env`) and are signed with `SECRET_KEY`, which `./run.sh` generates.
+
 ## Current Maturity Snapshot
 
 The repository already demonstrates a credible control plane: the core FastAPI/Next.js stack exists, the forecasting + critique pipeline is wired, and the product direction is documented in the backlog and vision artifacts. At the same time, several moat-defining capabilities are still explicitly tracked as unfinished work, so the platform should be presented as a strong foundation rather than a fully locked-down execution engine.

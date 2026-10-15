@@ -99,6 +99,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Baked into the image's /api proxy at build time.
+        BACKEND_URL: http://backend:8000
     restart: unless-stopped
     container_name: alphainsights-frontend
     # This machine only; other machines reach the UI through nginx.

@@ -11,6 +11,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Use a placeholder for build time, as NEXT_PUBLIC_API_URL is handled at runtime or via proxy
 ENV NEXT_TELEMETRY_DISABLED 1
+# next build fixes the /api proxy target (next.config.js rewrites) into the
+# image, so it must be the backend's address on the compose network.
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=$BACKEND_URL
 RUN npm run build
 
 # Stage 3: Runner
