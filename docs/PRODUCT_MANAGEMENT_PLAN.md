@@ -145,7 +145,7 @@ So the roadmap is **re-baselined**. Phase 0 must finish before any pilot convers
 | GC-05 | Notification center | 🎭 | ★★ | Rebuild | P2 | 2 | M |
 | GC-06 | Settings modal | 🟡⛔ | ★★ | Rebuild | P1 | 1 | M |
 | GC-07 | Sidebar chat (global copilot) | ❌ | ★★ | Fix and Merge | **P0** | 0–1 | S |
-| GC-08 | Wallet connect (RainbowKit/wagmi) | ❌ | ✗ | Cut | P1 | 1 | S |
+| GC-08 | Wallet connect (RainbowKit/wagmi) | ❌ | ✗ | Cut (done) | P1 | 1 | S |
 
 ### 3.4 Backend capabilities
 
@@ -725,6 +725,7 @@ These apply to every card below and are not repeated in each one.
   - Wallet libraries are a large share of the 589 kB dashboard bundle.
 - **Decision:** Cut. Browser-wallet signing doesn't fit a privacy-first institutional ICP, and trade execution is out of MVP scope. Remove `wagmi`, `viem` and `@rainbow-me/rainbowkit`.
 - **Metric:** 0 console errors on page load; dashboard first-load JS reduced. Target < 350 kB.
+- **Status:** Done in `8f7f518`. The wallet stack is removed; page loads open no wallet connections, and `/dashboard` transfers 236 kB of JavaScript (820 kB before, measured the same way).
 - **Priority / Phase / Size:** P1 · 1 · S
 
 ### 5.4 Backend capabilities
@@ -1190,7 +1191,7 @@ These apply to every card below and are not repeated in each one.
   2. Move ML dependencies to a worker-only extra.
   3. Remove unused packages.
   4. Turn on Renovate or Dependabot.
-  5. **P0, before PG-02 Phase 0 ships:** Upgrade to Next.js ≥ 14.2.25 (or 15.x) and Node 20 or 22 LTS in all three Dockerfile stages, so the new auth gating doesn't rest on an affected release.
+  5. **P0, before PG-02 Phase 0 ships:** Upgrade to Next.js ≥ 14.2.25 (or 15.x) and Node 20 or 22 LTS in all three Dockerfile stages, so the new auth gating doesn't rest on an affected release. **Done** in `8f7f518`: Next.js 16.4.1 and React 19 on Node 24 LTS (Node 20 reached end of life in April 2026).
 - **Priority / Phase / Size:** **P0** (#5) · 0 · S; rest P1 · 1 · S
 
 #### PL-08: Feature flags and pilot mode

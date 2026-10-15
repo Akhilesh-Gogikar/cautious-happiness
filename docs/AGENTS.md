@@ -11,7 +11,7 @@
 | Path | Description | Key Tech |
 |------|-------------|----------|
 | `/backend` | Core logic, API, and RAG engine. | FastAPI, Python 3.11+, LangChain |
-| `/frontend` | User interface and data visualization. | Next.js 14, React, Tailwind |
+| `/frontend` | User interface and data visualization. | Next.js 16, React 19, Tailwind |
 | `/nginx` | Reverse proxy and SSL termination. | Nginx |
 | `/docs` | Detailed documentation. | Markdown |
 | `docker-compose.yml` | Orchardstration for all services. | Docker |
@@ -34,9 +34,9 @@ Always use the provided script which handles container orchestration.
   ```bash
   docker compose exec backend pytest
   ```
-- **Frontend**: Currently relies on build checks.
+- **Frontend**: Lint and build checks (Node 24; `next build` no longer runs ESLint).
   ```bash
-  cd frontend && npm run build
+  cd frontend && npm run lint && npm run build
   ```
 
 ## 3. Rules of Engagement

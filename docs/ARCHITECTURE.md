@@ -62,7 +62,7 @@ graph TD
 - **Function**: Analyzes the "information diet" of competitor algorithms to predict crowd-sided trades in physical commodities.
 
 ### 5. The Terminal (Frontend)
-- **Technology**: Next.js, Tailwind CSS, Reown (WalletConnect)
+- **Technology**: Next.js 16, React 19, Tailwind CSS
 - **Role**: Human-in-the-loop control interface.
 - **Design Philosophy**: "Data Noir" – high contrast, information-dense, focusing on readability and speed.
 - **Reference**: [Frontend Docs](frontend.md)

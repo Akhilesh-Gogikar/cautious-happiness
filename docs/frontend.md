@@ -4,7 +4,7 @@
 The Frontend is a specialized "Data Noir" terminal designed for high-density information display. It prioritizes speed, readability, and "Institutional" aesthetics over playful consumer design.
 
 ## 1. Key Technologies
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router, Turbopack), React 19
 - **Styling**: Tailwind CSS
 - **State**: React Query + Context
 - **Charts**: Recharts / Lightweight Charts
@@ -46,11 +46,14 @@ frontend/
 ## 5. Development Guide
 
 ### Running Locally
+Needs Node.js 20.9 or newer; the Docker image uses Node 24 LTS.
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
+
+Checks: `npm run lint` (ESLint, `eslint.config.mjs`) and `npm run build`. `next build` type-checks but no longer lints. For a standalone type-check on a fresh checkout, run `npx next typegen` first, then `npx tsc --noEmit`.
 
 ### Adding a Page
 1.  Create `app/dashboard/new-feature/page.tsx`.
