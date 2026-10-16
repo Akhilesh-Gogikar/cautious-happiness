@@ -859,7 +859,7 @@ These apply to every card below and are not repeated in each one.
 #### SV-07: Mirror service
 - See **VW-07** for requirements.
 - **Backend specifics:**
-  - Add auth.
+  - Add auth. **Done** in `d67f361`: every `/mirror` route requires sign-in (QA-012); role checks remain (SV-02).
   - Target CRUD tables: `mirror_targets`, `mirror_snapshots`.
   - Replace `duckduckgo_search` with a pinned `ddgs` package (search already runs in `asyncio.to_thread`).
   - Keep Mirror's LLM calls on the shared `ai_client` (already done via `infrastructure/llm.generate_text`, which closes the YC plan's "Unify inference access" item).
@@ -870,7 +870,7 @@ These apply to every card below and are not repeated in each one.
 - **Today:**
   - `/intelligence/news` is unauthenticated. Fixed in `1003f39`: it requires sign-in.
   - It parses 3 RSS feeds synchronously inside an async route; the Reuters feed is dead.
-  - FinBERT (about 440 MB) loads **at import**. With no network it fails silently and every item becomes neutral 0.0.
+  - FinBERT (about 440 MB) loads **at import**; since `9e55ae3` it loads on first use instead, still in the API process (QA-033). With no network it fails silently and every item becomes neutral 0.0.
   - The UI never calls it; `NewsFeed.tsx` and `NarrativeDivergence.tsx` are unused.
 - **Decision:** Fix and Wire, **as an input to forecasts and Mirror** rather than a standalone feed.
 - **Requirements:**
@@ -885,7 +885,7 @@ These apply to every card below and are not repeated in each one.
 - See **VW-09**.
 - **Backend specifics:**
   - Move under `/scanner` so it works through nginx (QA-021).
-  - Add auth.
+  - Add auth. **Done** in `1003f39`: `/api/v1/scanner/assets` requires sign-in (QA-012); role checks remain (SV-02).
   - Cache prices.
   - Return `price_source`.
   - Replace all time-based synthetic metrics.
@@ -944,7 +944,7 @@ These apply to every card below and are not repeated in each one.
 #### SV-14: Demo multi-agent RAG (`/demo/analyze`, `/demo/ingest_news`)
 - **Today:**
   - **Unauthenticated database write** (QA-012). Fixed in `1003f39`: both routes require sign-in, and anonymous calls are refused before the embedder loads.
-  - Loads a 2 GB embedder at import.
+  - Loads a 2 GB embedder at import; since `9e55ae3` it loads on first use instead (QA-033).
   - Falls back to a constant vector, which makes retrieval meaningless.
   - Returns `status: success` even when the payload is an error.
   - `run_polymarket_pipeline` references a nonexistent attribute.
