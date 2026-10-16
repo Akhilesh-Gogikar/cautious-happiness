@@ -39,11 +39,12 @@ export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
     const activeModel = useSelectedModel();
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Also on open: the intro exists before the panel's scroll area does.
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, isOpen]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
