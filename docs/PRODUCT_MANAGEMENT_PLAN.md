@@ -502,7 +502,7 @@ These apply to every card below and are not repeated in each one.
   - Save and Backtest do nothing.
   - Python is highlighted as JavaScript.
   - The UI sends a hardcoded `model: 'lfm-40b'`, but the backend ignores it and always calls the configured llama.cpp `/completion` endpoint (`strategy/service.py:33-44`), so model selection is dead code.
-  - The endpoint is unauthenticated (QA-012).
+  - The endpoint is unauthenticated (QA-012). Fixed in `1003f39`: it requires sign-in.
   - A file-based strategy package format already exists: `strategies/template/strategy_config.yaml`, an example `strategies/moving_average_cross/` package, and `backend/scripts/scaffold_strategy.py`. The scaffold script and the example backtest hardcode one machine's absolute path, and the scaffold needs `pyyaml` and `backtrader`, which aren't in requirements.
 - **Decision:** Merge into **Strategy Lab**, then Hide. Out of MVP; build in Phase 3.
 - **Requirements to un-hide (Phase 3):**
@@ -519,7 +519,7 @@ These apply to every card below and are not repeated in each one.
   - Analyze runs search + LLM (sources were blocked in the sandbox). On empty results the UI shows a **fabricated fallback** source card.
   - Results aren't persisted.
   - The Decision Protocol's BUY/SELL buttons give a **false "Mirror Trade Initialized"** (QA-013). The target asset is hardcoded WTI/BRENT.
-  - No auth on the backend (QA-012).
+  - No auth on the backend (QA-012). Fixed in `d67f361`: `/mirror` requires sign-in.
 - **Decision:** Fix and Wire. Re-scope "competitors" as **tracked narrative sources**.
 - **Requirements:**
   1. **Tracked targets** have full create/read/update/delete: name, description, source domains, keywords, linked assets. Seed examples are generic, not real firm names.
@@ -868,7 +868,7 @@ These apply to every card below and are not repeated in each one.
 
 #### SV-08: News and sentiment (FinBERT)
 - **Today:**
-  - `/intelligence/news` is unauthenticated.
+  - `/intelligence/news` is unauthenticated. Fixed in `1003f39`: it requires sign-in.
   - It parses 3 RSS feeds synchronously inside an async route; the Reuters feed is dead.
   - FinBERT (about 440 MB) loads **at import**. With no network it fails silently and every item becomes neutral 0.0.
   - The UI never calls it; `NewsFeed.tsx` and `NarrativeDivergence.tsx` are unused.
@@ -893,7 +893,7 @@ These apply to every card below and are not repeated in each one.
 
 #### SV-10: Strategy generation and sandbox backtest
 - **Today:**
-  - `/strategy/generate` is unauthenticated and returns LLM prose as code.
+  - `/strategy/generate` returns LLM prose as code. It was unauthenticated; it requires sign-in since `1003f39`.
   - The fallback triggers on the substring "Error", which matches valid code containing `ValueError`.
   - The sandbox runs `exec()` as root with no limits and isn't wired to anything.
   - No backtest endpoint.
@@ -943,7 +943,7 @@ These apply to every card below and are not repeated in each one.
 
 #### SV-14: Demo multi-agent RAG (`/demo/analyze`, `/demo/ingest_news`)
 - **Today:**
-  - **Unauthenticated database write** (QA-012).
+  - **Unauthenticated database write** (QA-012). Fixed in `1003f39`: both routes require sign-in, and anonymous calls are refused before the embedder loads.
   - Loads a 2 GB embedder at import.
   - Falls back to a constant vector, which makes retrieval meaningless.
   - Returns `status: success` even when the payload is an error.
@@ -968,7 +968,7 @@ These apply to every card below and are not repeated in each one.
   - `/health` always returns HTTP 200 and is `degraded` whenever Gemini is unset.
   - It doesn't check the worker or migrations.
   - JSON request logs exist. The only run-level events are ephemeral Redis pub/sub progress messages from the worker (`status`, `complete`, `failed`; `worker.py:22-48`). They are never logged or stored, and the WebSocket that should relay them crashes (QA-008). The YC plan's event model isn't implemented.
-  - `GET /intelligence/status` (FinBERT model status) is a separate, unauthenticated endpoint.
+  - `GET /intelligence/status` (FinBERT model status) is a separate endpoint; it requires sign-in since `1003f39`.
   - No alert channel, error tracker or frontend product events exist, although several cards require alerts and §7 measures adoption from events.
 - **Decision:** Fix.
 - **Requirements:**
