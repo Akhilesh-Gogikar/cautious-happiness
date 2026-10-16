@@ -8,6 +8,7 @@ import redis.asyncio as aioredis
 from celery.result import AsyncResult
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.core.auth import WebSocketAuthError, authenticate_websocket
 from app.worker import celery_app
 
 logger = logging.getLogger("alpha_insights")
@@ -25,7 +26,8 @@ MAX_WAIT_SECONDS = 900
 
 
 async def _wait_for_disconnect(websocket: WebSocket) -> None:
-    # Clients never send on this socket; receive() only returns when they leave.
+    # After the sign-in message clients never send on this socket; receive() only
+    # returns when they leave.
     try:
         while (await websocket.receive())["type"] != "websocket.disconnect":
             pass
@@ -40,6 +42,17 @@ FAILED_STATES = {"FAILURE": "The analysis task failed.", "REVOKED": "The analysi
 @router.websocket("/ws/lifecycle/{task_id}")
 async def websocket_lifecycle(websocket: WebSocket, task_id: str):
     await websocket.accept()
+    # Signed-in users only (QA-004). Nothing about the task is read or subscribed to first.
+    try:
+        await authenticate_websocket(websocket)
+    except WebSocketAuthError as refused:
+        logger.info(f"Lifecycle socket refused with {refused.code}: {task_id}")
+        try:
+            await websocket.send_json({"event": "failed", "message": refused.message})
+            await websocket.close(code=refused.code)
+        except Exception:
+            pass  # The client already left.
+        return
 
     if task_id.startswith("cached_"):
         await websocket.send_json({"event": "complete", "message": "Analysis complete (Cached)"})

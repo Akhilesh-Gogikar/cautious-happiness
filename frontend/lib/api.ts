@@ -1,4 +1,4 @@
-import { apiFetch } from './auth/session';
+import { apiFetch, openApiSocket } from './auth/session';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -42,6 +42,11 @@ export async function getTaskStatus(taskId: string) {
     const res = await apiFetch(`${API_URL}/prediction/task/${taskId}`);
     if (!res.ok) throw new Error('Failed to fetch task status');
     return res.json();
+}
+
+/** The task's lifecycle events (status, then complete or failed) as JSON messages. */
+export function openTaskLifecycle(taskId: string): WebSocket {
+    return openApiSocket(API_URL.replace('http', 'ws') + `/ws/lifecycle/${taskId}`);
 }
 
 export interface ChatMessage {

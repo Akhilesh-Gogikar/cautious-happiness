@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { fetchMarkets, predictMarket, getTaskStatus, API_URL } from '@/lib/api';
+import { fetchMarkets, predictMarket, getTaskStatus, openTaskLifecycle } from '@/lib/api';
 import { toast } from "sonner";
 import { ChatPanel } from './chat-panel';
 import { DepthChart } from '@/components/dashboard/depth-chart';
@@ -113,8 +113,7 @@ export function MarketTable() {
             toast.info("Mirroring Initialized", { description: "Establishing Neural Handshake..." });
             setStatusMessage("Establishing peer handshake...");
 
-            const wsUrl = API_URL.replace('http', 'ws') + `/ws/lifecycle/${task_id}`;
-            const ws = new WebSocket(wsUrl);
+            const ws = openTaskLifecycle(task_id);
             auditRef.current = { taskId: task_id, ws };
             const isCurrent = () => auditRef.current?.taskId === task_id;
 

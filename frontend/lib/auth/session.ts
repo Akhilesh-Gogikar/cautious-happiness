@@ -1,5 +1,6 @@
-// The backend's access token (POST /auth/token) and the one fetch wrapper that
-// sends it. Every call to the backend should go through apiFetch.
+// The backend's access token (POST /auth/token), the one fetch wrapper that sends
+// it and its WebSocket counterpart. Every call to the backend should go through
+// apiFetch or openApiSocket.
 
 /** localStorage key of the token; other tabs see changes to it as 'storage' events. */
 export const TOKEN_KEY = 'token';
@@ -36,6 +37,11 @@ export function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
 }
 
+function endSession() {
+    clearToken();
+    window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+}
+
 /** fetch() with the session token attached; a 401 ends the session. */
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
     const token = getToken();
@@ -43,9 +49,23 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     if (token) headers.set('Authorization', `Bearer ${token}`);
     const res = await fetch(input, { ...init, headers });
     // Also when no token was sent: it may have been cleared since sign-in.
-    if (res.status === 401) {
-        clearToken();
-        window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
-    }
+    if (res.status === 401) endSession();
     return res;
+}
+
+/** The close code the backend uses when a socket's token is missing or rejected, after HTTP 401. */
+export const WS_CLOSE_UNAUTHORIZED = 4401;
+
+/**
+ * A WebSocket to the backend that signs in like apiFetch. Browsers cannot set
+ * headers on a WebSocket, and a token in the URL would end up in access logs, so
+ * the token goes in the first message. A rejected token ends the session.
+ */
+export function openApiSocket(url: string): WebSocket {
+    const ws = new WebSocket(url);
+    ws.addEventListener('open', () => ws.send(JSON.stringify({ type: 'auth', token: getToken() })));
+    ws.addEventListener('close', (event) => {
+        if (event.code === WS_CLOSE_UNAUTHORIZED) endSession();
+    });
+    return ws;
 }

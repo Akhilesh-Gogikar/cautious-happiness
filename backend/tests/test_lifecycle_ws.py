@@ -1,13 +1,18 @@
 import asyncio
+import contextlib
 import json
 import time
+from datetime import timedelta
 
 import pytest
 import redis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from jose import jwt
 from starlette.websockets import WebSocketDisconnect
 
+from app.core import auth, security
+from app.models import UserInDB
 from app.routers import lifecycle
 
 
@@ -76,29 +81,61 @@ class FakeResult:
         return "PENDING"
 
 
+def _auth_message(token):
+    return json.dumps({"type": "auth", "token": token})
+
+
+def _token(username="analyst", **claims):
+    return security.create_access_token({"sub": username, **claims})
+
+
 @pytest.fixture
-def connect(monkeypatch):
+def results_requested():
+    return []
+
+
+@pytest.fixture
+def connect(monkeypatch, results_requested):
+    monkeypatch.delenv("ALLOW_DEMO_AUTH", raising=False)
     monkeypatch.setattr(lifecycle, "POLL_SECONDS", 0.01)
     app = FastAPI()
     app.include_router(lifecycle.router)
     client = TestClient(app)
 
-    def _connect(task_id, messages=(), result=None, **pubsub_kwargs):
+    def fake_async_result(task_id, app, result):
+        results_requested.append(task_id)
+        return result or FakeResult()
+
+    @contextlib.contextmanager
+    def _session(task_id, first_message):
+        with client.websocket_connect(f"/ws/lifecycle/{task_id}") as ws:
+            if first_message is not None:
+                ws.send_text(first_message)
+            yield ws
+
+    def _connect(task_id, messages=(), result=None, first_message="signed-in", **pubsub_kwargs):
+        # first_message: the client's first frame; by default an auth message with a valid token.
         fake_redis = FakeRedis(messages=messages, **pubsub_kwargs)
         monkeypatch.setattr(lifecycle, "async_redis", fake_redis)
-        monkeypatch.setattr(lifecycle, "AsyncResult", lambda task_id, app: result or FakeResult())
-        return client.websocket_connect(f"/ws/lifecycle/{task_id}"), fake_redis
+        monkeypatch.setattr(lifecycle, "AsyncResult", lambda task_id, app: fake_async_result(task_id, app, result))
+        if first_message == "signed-in":
+            first_message = _auth_message(_token())
+        return _session(task_id, first_message), fake_redis
 
     return _connect
 
 
 def _receive_all(ws):
+    return _receive_until_closed(ws)[0]
+
+
+def _receive_until_closed(ws):
     events = []
     while True:
         try:
             events.append(ws.receive_json())
-        except WebSocketDisconnect:
-            return events
+        except WebSocketDisconnect as closed:
+            return events, closed.code
 
 
 def _wait_until(predicate, timeout=2.0):
@@ -111,8 +148,8 @@ def _wait_until(predicate, timeout=2.0):
 
 
 def test_cached_task_reports_complete(connect):
-    ws, _ = connect("cached_abc123")
-    with ws:
+    session, _ = connect("cached_abc123")
+    with session as ws:
         assert _receive_all(ws) == [{"event": "complete", "message": "Analysis complete (Cached)"}]
 
 
@@ -120,8 +157,8 @@ def test_status_events_are_forwarded_and_complete_waits_for_result(connect):
     status = {"event": "status", "message": "Searching sources", "timestamp": ""}
     worker_complete = {"event": "complete", "message": "Analysis finished.", "timestamp": ""}
     result = FakeResult(finish_after=5)
-    ws, fake_redis = connect("task-1", messages=[status, worker_complete], result=result)
-    with ws:
+    session, fake_redis = connect("task-1", messages=[status, worker_complete], result=result)
+    with session as ws:
         events = _receive_all(ws)
     # The worker's own "complete" is not forwarded: it is published before Celery
     # stores the result, so the client could fetch a result that is not there yet.
@@ -137,22 +174,22 @@ def test_status_events_are_forwarded_and_complete_waits_for_result(connect):
 )
 def test_failed_celery_states_are_reported_as_failed(connect, final_state, message):
     # e.g. a worker child killed mid-task: Celery stores FAILURE and nothing publishes "failed".
-    ws, _ = connect("task-crashed", result=FakeResult(finish_after=2, final_state=final_state))
-    with ws:
+    session, _ = connect("task-crashed", result=FakeResult(finish_after=2, final_state=final_state))
+    with session as ws:
         assert _receive_all(ws) == [{"event": "failed", "message": message}]
 
 
 def test_failed_event_is_terminal(connect):
     failed = {"event": "failed", "message": "LLM unavailable", "timestamp": ""}
-    ws, fake_redis = connect("task-2", messages=[failed], result=FakeResult())
-    with ws:
+    session, fake_redis = connect("task-2", messages=[failed], result=FakeResult())
+    with session as ws:
         assert _receive_all(ws) == [failed]
     assert _wait_until(lambda: fake_redis.instance.closed)
 
 
 def test_client_disconnect_releases_subscription(connect):
-    ws, fake_redis = connect("unknown-task", result=FakeResult())
-    with ws:
+    session, fake_redis = connect("unknown-task", result=FakeResult())
+    with session as ws:
         assert _wait_until(lambda: fake_redis.instance and fake_redis.instance.subscribed == ["task_events:unknown-task"])
         ws.close()
         # Checked inside the block, before TestClient tears the app down on exit.
@@ -160,16 +197,118 @@ def test_client_disconnect_releases_subscription(connect):
 
 
 def test_redis_outage_reports_failure_and_releases_connection(connect):
-    ws, fake_redis = connect("task-3", result=FakeResult(), fail_after_subscribe=True)
-    with ws:
+    session, fake_redis = connect("task-3", result=FakeResult(), fail_after_subscribe=True)
+    with session as ws:
         assert _receive_all(ws) == [{"event": "failed", "message": "Lost track of the analysis task."}]
     assert _wait_until(lambda: fake_redis.instance.closed)
 
 
 def test_gives_up_after_max_wait(connect, monkeypatch):
     monkeypatch.setattr(lifecycle, "MAX_WAIT_SECONDS", 0.05)
-    ws, fake_redis = connect("never-finishes", result=FakeResult())
-    with ws:
+    session, fake_redis = connect("never-finishes", result=FakeResult())
+    with session as ws:
         events = _receive_all(ws)
     assert events == [{"event": "failed", "message": "Timed out waiting for the analysis to finish."}]
     assert _wait_until(lambda: fake_redis.instance.closed)
+
+
+REFUSED = {
+    "nothing sent": (None, auth.WS_CLOSE_POLICY_VIOLATION),
+    "not JSON": ("hello", auth.WS_CLOSE_POLICY_VIOLATION),
+    "JSON that is not an object": ('["auth"]', auth.WS_CLOSE_POLICY_VIOLATION),
+    "object without the auth type": (lambda: json.dumps({"token": _token()}), auth.WS_CLOSE_POLICY_VIOLATION),
+    "auth message without a token": ('{"type": "auth"}', auth.WS_CLOSE_UNAUTHORIZED),
+    "empty token": (lambda: _auth_message(""), auth.WS_CLOSE_UNAUTHORIZED),
+    "token that is not a string": (lambda: _auth_message(123), auth.WS_CLOSE_UNAUTHORIZED),
+    "malformed token": (lambda: _auth_message("not-a-jwt"), auth.WS_CLOSE_UNAUTHORIZED),
+    "expired token": (
+        lambda: _auth_message(security.create_access_token({"sub": "analyst"}, expires_delta=timedelta(minutes=-1))),
+        auth.WS_CLOSE_UNAUTHORIZED,
+    ),
+    "token signed with another key": (
+        lambda: _auth_message(jwt.encode({"sub": "admin"}, "some-other-key", algorithm=security.ALGORITHM)),
+        auth.WS_CLOSE_UNAUTHORIZED,
+    ),
+    "token for an unknown user": (lambda: _auth_message(_token("nobody")), auth.WS_CLOSE_UNAUTHORIZED),
+}
+
+
+@pytest.mark.parametrize("task_id", ["task-9", "cached_abc123"])
+@pytest.mark.parametrize("case", list(REFUSED))
+def test_socket_without_a_valid_sign_in_is_refused_before_the_task_is_read(
+    connect, monkeypatch, results_requested, task_id, case
+):
+    monkeypatch.setattr(auth, "WS_AUTH_TIMEOUT_SECONDS", 0.05)
+    first_message, code = REFUSED[case]
+    if callable(first_message):
+        first_message = first_message()
+    session, fake_redis = connect(task_id, result=FakeResult(finish_after=1), first_message=first_message)
+    with session as ws:
+        events, closed_with = _receive_until_closed(ws)
+    assert [e["event"] for e in events] == ["failed"]
+    assert closed_with == code
+    # Neither Celery nor Redis was asked about the task.
+    assert results_requested == []
+    assert fake_redis.instance is None
+
+
+def test_binary_first_frame_is_refused(connect, results_requested):
+    session, fake_redis = connect("task-9", first_message=None)
+    with session as ws:
+        ws.send_bytes(_auth_message(_token()).encode())
+        assert _receive_until_closed(ws)[1] == auth.WS_CLOSE_POLICY_VIOLATION
+    assert results_requested == [] and fake_redis.instance is None
+
+
+def test_disabled_account_is_refused(connect, monkeypatch, results_requested):
+    disabled = UserInDB(username="analyst", role="analyst", disabled=True, hashed_password="x")
+    monkeypatch.setattr(auth.user_service, "get_user", lambda username: disabled)
+    session, fake_redis = connect("task-9")
+    with session as ws:
+        events, closed_with = _receive_until_closed(ws)
+    assert events == [{"event": "failed", "message": "This account is disabled."}]
+    assert closed_with == auth.WS_CLOSE_FORBIDDEN
+    assert results_requested == [] and fake_redis.instance is None
+
+
+def test_client_leaving_before_signing_in_reads_nothing(connect, results_requested):
+    session, fake_redis = connect("task-9", first_message=None)
+    with session as ws:
+        ws.close()
+    assert results_requested == [] and fake_redis.instance is None
+
+
+def test_signed_in_user_follows_the_task(connect, results_requested):
+    session, _ = connect("task-4", result=FakeResult(finish_after=2), first_message=_auth_message(_token("trader")))
+    with session as ws:
+        events, closed_with = _receive_until_closed(ws)
+    assert events == [{"event": "complete", "message": "Task finished."}]
+    assert closed_with == 1000
+    assert results_requested == ["task-4"]
+
+
+def test_demo_auth_accepts_an_auth_message_without_a_token(connect, monkeypatch):
+    monkeypatch.setenv("ALLOW_DEMO_AUTH", "true")
+    session, _ = connect("task-5", result=FakeResult(finish_after=1), first_message='{"type": "auth", "token": null}')
+    with session as ws:
+        assert _receive_all(ws) == [{"event": "complete", "message": "Task finished."}]
+
+
+@pytest.mark.parametrize(
+    "first_message, code",
+    [
+        (None, auth.WS_CLOSE_POLICY_VIOLATION),
+        ("hello", auth.WS_CLOSE_POLICY_VIOLATION),
+        (_auth_message("not-a-jwt"), auth.WS_CLOSE_UNAUTHORIZED),
+    ],
+)
+def test_demo_auth_still_needs_an_auth_message_and_refuses_bad_tokens(
+    connect, monkeypatch, results_requested, first_message, code
+):
+    # As on HTTP routes: demo auth stands in only for a missing token, never for a rejected one.
+    monkeypatch.setenv("ALLOW_DEMO_AUTH", "true")
+    monkeypatch.setattr(auth, "WS_AUTH_TIMEOUT_SECONDS", 0.05)
+    session, _ = connect("task-6", result=FakeResult(finish_after=1), first_message=first_message)
+    with session as ws:
+        assert _receive_until_closed(ws)[1] == code
+    assert results_requested == []
