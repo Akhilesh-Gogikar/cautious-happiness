@@ -53,7 +53,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     return res;
 }
 
-/** The close code the backend uses when a socket's token is missing or rejected, after HTTP 401. */
+/** The close code the backend uses when a socket's token is missing or rejected, after HTTP 401 (WS_CLOSE_UNAUTHORIZED in backend/app/core/auth.py). */
 export const WS_CLOSE_UNAUTHORIZED = 4401;
 
 /**

@@ -99,7 +99,11 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 # access logs, so a socket's client sends {"type": "auth", "token": "<access token>"}
 # as its first message.
 WS_AUTH_TIMEOUT_SECONDS = 10.0
+# An auth message is well under 1 KB. Longer ones are refused unread, because parsing
+# runs on the event loop (a 16 MB frame, uvicorn's limit, takes about 0.4 s).
+WS_AUTH_MESSAGE_MAX_CHARS = 4096
 # 4000-4999 are application close codes; these follow HTTP 401 and 403.
+# frontend/lib/auth/session.ts and docs/backend.md rely on these values.
 WS_CLOSE_UNAUTHORIZED = 4401
 WS_CLOSE_FORBIDDEN = 4403
 # The standard "policy violation" code, for a first message that isn't an auth message.
@@ -120,9 +124,11 @@ async def authenticate_websocket(websocket: WebSocket) -> User:
     within WS_AUTH_TIMEOUT_SECONDS or its token is missing or rejected.
     """
     try:
-        message = json.loads(await asyncio.wait_for(websocket.receive_text(), WS_AUTH_TIMEOUT_SECONDS))
-    except (asyncio.TimeoutError, ValueError, KeyError, TypeError, WebSocketDisconnect):
+        text = await asyncio.wait_for(websocket.receive_text(), WS_AUTH_TIMEOUT_SECONDS)
+        message = json.loads(text) if len(text) <= WS_AUTH_MESSAGE_MAX_CHARS else None
+    except (asyncio.TimeoutError, ValueError, RecursionError, KeyError, TypeError, WebSocketDisconnect):
         # KeyError or TypeError: a binary frame, which has no text (or None, on some servers).
+        # RecursionError: JSON nested too deeply for the decoder.
         message = None
     if not isinstance(message, dict) or message.get("type") != "auth":
         raise WebSocketAuthError(WS_CLOSE_POLICY_VIOLATION, "Expected a sign-in message first.")
@@ -130,7 +136,8 @@ async def authenticate_websocket(websocket: WebSocket) -> User:
     token = message.get("token")
     if not token and demo_auth_enabled():
         return _demo_user()
-    user = user_for_token(token) if isinstance(token, str) and token else None
+    # A JWT is ASCII; other text would make the decoder raise rather than reject it.
+    user = user_for_token(token) if isinstance(token, str) and token and token.isascii() else None
     if user is None:
         raise WebSocketAuthError(WS_CLOSE_UNAUTHORIZED, "Your session has ended. Sign in again.")
     if user.disabled:

@@ -230,7 +230,37 @@ REFUSED = {
         auth.WS_CLOSE_UNAUTHORIZED,
     ),
     "token for an unknown user": (lambda: _auth_message(_token("nobody")), auth.WS_CLOSE_UNAUTHORIZED),
+    "token that is not ASCII": (lambda: _auth_message("\ud800"), auth.WS_CLOSE_UNAUTHORIZED),
+    "JSON nested too deeply": ("[" * 3000, auth.WS_CLOSE_POLICY_VIOLATION),
+    "auth message with a deeply nested field": (
+        lambda: '{"type": "auth", "token": "%s", "x": %s}' % (_token(), "[" * 1500 + "]" * 1500),
+        auth.WS_CLOSE_POLICY_VIOLATION,
+    ),
+    "auth message over the size limit": (
+        lambda: json.dumps({"type": "auth", "token": _token(), "pad": "x" * auth.WS_AUTH_MESSAGE_MAX_CHARS}),
+        auth.WS_CLOSE_POLICY_VIOLATION,
+    ),
 }
+
+
+def test_close_codes_are_the_documented_wire_values():
+    # frontend/lib/auth/session.ts and docs/backend.md use these numbers.
+    assert (auth.WS_CLOSE_POLICY_VIOLATION, auth.WS_CLOSE_UNAUTHORIZED, auth.WS_CLOSE_FORBIDDEN) == (1008, 4401, 4403)
+
+
+def test_sign_in_wait_is_bounded(monkeypatch):
+    class SilentSocket:
+        async def receive_text(self):
+            await asyncio.Event().wait()
+
+    async def sign_in():
+        # The outer timeout makes the test fail, rather than hang, if the wait is unbounded.
+        return await asyncio.wait_for(auth.authenticate_websocket(SilentSocket()), 2)
+
+    monkeypatch.setattr(auth, "WS_AUTH_TIMEOUT_SECONDS", 0.05)
+    with pytest.raises(auth.WebSocketAuthError) as refused:
+        asyncio.run(sign_in())
+    assert refused.value.code == auth.WS_CLOSE_POLICY_VIOLATION
 
 
 @pytest.mark.parametrize("task_id", ["task-9", "cached_abc123"])
@@ -253,7 +283,8 @@ def test_socket_without_a_valid_sign_in_is_refused_before_the_task_is_read(
 
 
 def test_binary_first_frame_is_refused(connect, results_requested):
-    session, fake_redis = connect("task-9", first_message=None)
+    # A result that finishes at once, so a regression fails fast instead of waiting out MAX_WAIT_SECONDS.
+    session, fake_redis = connect("task-9", result=FakeResult(finish_after=1), first_message=None)
     with session as ws:
         ws.send_bytes(_auth_message(_token()).encode())
         assert _receive_until_closed(ws)[1] == auth.WS_CLOSE_POLICY_VIOLATION
@@ -263,7 +294,7 @@ def test_binary_first_frame_is_refused(connect, results_requested):
 def test_disabled_account_is_refused(connect, monkeypatch, results_requested):
     disabled = UserInDB(username="analyst", role="analyst", disabled=True, hashed_password="x")
     monkeypatch.setattr(auth.user_service, "get_user", lambda username: disabled)
-    session, fake_redis = connect("task-9")
+    session, fake_redis = connect("task-9", result=FakeResult(finish_after=1))
     with session as ws:
         events, closed_with = _receive_until_closed(ws)
     assert events == [{"event": "failed", "message": "This account is disabled."}]
