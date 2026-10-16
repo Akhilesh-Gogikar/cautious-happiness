@@ -11,6 +11,26 @@ import { toast } from 'sonner';
 import { API_URL } from '@/lib/api';
 import { apiFetch } from '@/lib/auth/session';
 
+interface ScanFilters {
+    minPremium: number;
+    minAccuracy: number;
+    assetClass: string;
+    sector: string;
+}
+
+async function fetchScan({ minPremium, minAccuracy, assetClass, sector }: ScanFilters): Promise<ScanResult[]> {
+    const params = new URLSearchParams();
+    if (minPremium > 0) params.append('min_physical_premium', minPremium.toString());
+    if (minAccuracy > 0) params.append('min_mirror_accuracy', minAccuracy.toString());
+    if (assetClass !== 'all') params.append('asset_class', assetClass);
+    if (sector !== 'all') params.append('sector', sector);
+
+    // The scanner's own routes start with /api/v1, after the API base.
+    const response = await apiFetch(`${API_URL}/api/v1/scanner/assets?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to fetch data');
+    return response.json();
+}
+
 interface ScanResult {
     symbol: string;
     name: string;
@@ -25,7 +45,8 @@ interface ScanResult {
 
 export function AlphaScanner() {
     const [assets, setAssets] = useState<ScanResult[]>([]);
-    const [loading, setLoading] = useState(false);
+    // True from the start: the scanner scans as soon as it opens.
+    const [loading, setLoading] = useState(true);
 
     // Filters state
     const [minPremium, setMinPremium] = useState<number[]>([2]);
@@ -33,33 +54,27 @@ export function AlphaScanner() {
     const [assetClass, setAssetClass] = useState<string>('all');
     const [sector, setSector] = useState<string>('all');
 
-    const handleScan = async () => {
-        setLoading(true);
-        try {
-            // Build query params
-            const params = new URLSearchParams();
-            if (minPremium[0] > 0) params.append('min_physical_premium', minPremium[0].toString());
-            if (minAccuracy[0] > 0) params.append('min_mirror_accuracy', minAccuracy[0].toString());
-            if (assetClass !== 'all') params.append('asset_class', assetClass);
-            if (sector !== 'all') params.append('sector', sector);
+    // State changes only once the request settles (in the callbacks).
+    const scan = () =>
+        fetchScan({ minPremium: minPremium[0], minAccuracy: minAccuracy[0], assetClass, sector })
+            .then((data) => {
+                setAssets(data);
+                toast.success(`Scan complete. Found ${data.length} matching assets.`);
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error('Garrison system overloaded. Failed to fetch scanner data.');
+            })
+            .finally(() => setLoading(false));
 
-            // The scanner's own routes start with /api/v1, after the API base.
-            const response = await apiFetch(`${API_URL}/api/v1/scanner/assets?${params.toString()}`);
-            if (!response.ok) throw new Error('Failed to fetch data');
-            const data = await response.json();
-            setAssets(data);
-            toast.success(`Scan complete. Found ${data.length} matching assets.`);
-        } catch (error) {
-            console.error(error);
-            toast.error('Garrison system overloaded. Failed to fetch scanner data.');
-        } finally {
-            setLoading(false);
-        }
+    const handleScan = () => {
+        setLoading(true);
+        scan();
     };
 
     // Auto-scan on component mount
     useEffect(() => {
-        handleScan();
+        scan();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

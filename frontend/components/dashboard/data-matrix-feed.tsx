@@ -23,29 +23,31 @@ interface MarketDataPoint {
     oiHistory: number[];
 }
 
+// Mock rows with random open-interest history; DataMatrix only renders in the
+// browser (the dashboard shows a spinner until sign-in resolves).
+function initialMarketData(): MarketDataPoint[] {
+    return [
+        { id: '1', symbol: 'BRENT', name: 'Brent Crude Oil', price: 82.45, change: 1.2, volume: 154000, category: 'PHYSICAL_DRIVEN', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 50) },
+        { id: '2', symbol: 'WTI', name: 'WTI Crude Oil', price: 78.12, change: -0.5, volume: 142000, category: 'MACRO_HEDGE', signal: 'HOLD', oiHistory: Array.from({ length: 20 }, () => 40 + Math.random() * 60) },
+        { id: '3', symbol: 'NGAS', name: 'Natural Gas', price: 2.85, change: -4.2, volume: 215000, category: 'EXTREME_NOISE', signal: 'AVOID', oiHistory: Array.from({ length: 20 }, () => 20 + Math.random() * 80) },
+        { id: '4', symbol: 'GOLD', name: 'Gold (XAU)', price: 2045.60, change: 0.8, volume: 98000, category: 'MACRO_HEDGE', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 70 + Math.random() * 30) },
+        { id: '5', symbol: 'COPPER', name: 'Copper (HG)', price: 3.84, change: 2.1, volume: 65000, category: 'PHYSICAL_DRIVEN', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 50) },
+        { id: '6', symbol: 'SILVER', name: 'Silver (XAG)', price: 24.15, change: -1.1, volume: 82000, category: 'FLOW_TOXIC', signal: 'SELL', oiHistory: Array.from({ length: 20 }, () => 30 + Math.random() * 70) },
+        { id: '7', symbol: 'ALUM', name: 'Aluminum', price: 2150.00, change: 0.4, volume: 45000, category: 'PHYSICAL_DRIVEN', signal: 'HOLD', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 30) },
+        { id: '8', symbol: 'URANIUM', name: 'Uranium (U3O8)', price: 92.50, change: 5.4, volume: 12000, category: 'EXTREME_NOISE', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 80 + Math.random() * 20) },
+    ];
+}
+
 export function DataMatrix() {
-    const [data, setData] = useState<MarketDataPoint[]>([]);
+    const [data, setData] = useState<MarketDataPoint[]>(initialMarketData);
     const [sortField, setSortField] = useState<SortField>('volume');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     
     // Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: MarketDataPoint | null } | null>(null);
 
-    // Initial Data Generation
+    // Streaming Data Simulation
     useEffect(() => {
-        const initialData: MarketDataPoint[] = [
-            { id: '1', symbol: 'BRENT', name: 'Brent Crude Oil', price: 82.45, change: 1.2, volume: 154000, category: 'PHYSICAL_DRIVEN', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 50) },
-            { id: '2', symbol: 'WTI', name: 'WTI Crude Oil', price: 78.12, change: -0.5, volume: 142000, category: 'MACRO_HEDGE', signal: 'HOLD', oiHistory: Array.from({ length: 20 }, () => 40 + Math.random() * 60) },
-            { id: '3', symbol: 'NGAS', name: 'Natural Gas', price: 2.85, change: -4.2, volume: 215000, category: 'EXTREME_NOISE', signal: 'AVOID', oiHistory: Array.from({ length: 20 }, () => 20 + Math.random() * 80) },
-            { id: '4', symbol: 'GOLD', name: 'Gold (XAU)', price: 2045.60, change: 0.8, volume: 98000, category: 'MACRO_HEDGE', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 70 + Math.random() * 30) },
-            { id: '5', symbol: 'COPPER', name: 'Copper (HG)', price: 3.84, change: 2.1, volume: 65000, category: 'PHYSICAL_DRIVEN', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 50) },
-            { id: '6', symbol: 'SILVER', name: 'Silver (XAG)', price: 24.15, change: -1.1, volume: 82000, category: 'FLOW_TOXIC', signal: 'SELL', oiHistory: Array.from({ length: 20 }, () => 30 + Math.random() * 70) },
-            { id: '7', symbol: 'ALUM', name: 'Aluminum', price: 2150.00, change: 0.4, volume: 45000, category: 'PHYSICAL_DRIVEN', signal: 'HOLD', oiHistory: Array.from({ length: 20 }, () => 50 + Math.random() * 30) },
-            { id: '8', symbol: 'URANIUM', name: 'Uranium (U3O8)', price: 92.50, change: 5.4, volume: 12000, category: 'EXTREME_NOISE', signal: 'BUY', oiHistory: Array.from({ length: 20 }, () => 80 + Math.random() * 20) },
-        ];
-        setData(initialData);
-
-        // Streaming Data Simulation
         const interval = setInterval(() => {
             setData(prev => prev.map(item => {
                 const priceVolatility = item.price * 0.001; 

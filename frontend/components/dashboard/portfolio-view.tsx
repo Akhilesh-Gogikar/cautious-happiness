@@ -5,19 +5,19 @@ import { ArrowUpRight, ArrowDownRight, Wallet, PieChart, TrendingUp, DollarSign,
 import { useEffect, useState } from "react";
 import { AlpacaDashboard } from "./alpaca-dashboard";
 import { fetchAlpacaStatus } from "@/lib/api";
+import { useIsClient } from "@/lib/use-is-client";
 
 export function PortfolioView() {
-    const [mounted, setMounted] = useState(false);
+    const isClient = useIsClient();
     const [hasAlpacaAuth, setHasAlpacaAuth] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
         fetchAlpacaStatus()
             .then((status) => setHasAlpacaAuth(status.configured))
             .catch(() => setHasAlpacaAuth(false));
     }, []);
 
-    if (!mounted) return null;
+    if (!isClient) return null;
 
     if (hasAlpacaAuth) {
         return <AlpacaDashboard />;

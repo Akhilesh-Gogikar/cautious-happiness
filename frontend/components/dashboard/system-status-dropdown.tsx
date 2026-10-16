@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Activity, Cpu, Zap, Server, ChevronDown } from 'lucide-react';
 import { fetchSystemHealth } from '@/lib/api';
-import { getSelectedModel, DEFAULT_LLM_PROVIDER } from '@/lib/llm-config';
+import { useSelectedModel, DEFAULT_LLM_PROVIDER } from '@/lib/llm-config';
 
 export function SystemStatusDropdown() {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [health, setHealth] = useState<{ ollama: boolean; redis: boolean; database: boolean; gemini_configured: boolean } | null>(null);
     const [healthError, setHealthError] = useState<string | null>(null);
-    const [activeModel, setActiveModel] = useState('lfm-thinking');
+    const activeModel = useSelectedModel();
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -23,8 +23,6 @@ export function SystemStatusDropdown() {
     }, []);
 
     useEffect(() => {
-        setActiveModel(getSelectedModel());
-
         const loadHealth = async () => {
             try {
                 const res = await fetchSystemHealth();

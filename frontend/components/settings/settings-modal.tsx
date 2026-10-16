@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER, DEFAULT_LLAMA_CPP_URL } from "@/lib/llm-config";
+import { DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER, DEFAULT_LLAMA_CPP_URL, getLlamaCppUrl, getSelectedModel, saveLlmConfig } from "@/lib/llm-config";
 import { useRouter } from "next/navigation";
 
 export function SettingsModal() {
@@ -28,19 +28,20 @@ export function SettingsModal() {
         // Credentials live on the server now; drop copies earlier versions kept here.
         localStorage.removeItem("ALPACA_API_KEY");
         localStorage.removeItem("ALPACA_SECRET_KEY");
-
-        const storedModel = localStorage.getItem("POLY_MODEL");
-        const storedLlamaCppUrl = localStorage.getItem("LLAMA_CPP_URL");
-        if (storedModel) setModel(storedModel);
-        if (storedLlamaCppUrl) setLlamaCppUrl(storedLlamaCppUrl);
         // Earlier versions kept a Gemini key here that nothing used; drop it.
         localStorage.removeItem("POLY_GEMINI_KEY");
     }, []);
 
-    const handleSave = () => {
-        localStorage.setItem("POLY_MODEL", model || DEFAULT_LLM_MODEL);
-        localStorage.setItem("LLAMA_CPP_URL", llamaCppUrl || DEFAULT_LLAMA_CPP_URL);
+    // Show the saved values each time the dialog opens; unsaved edits are dropped.
+    const handleOpenChange = (open: boolean) => {
+        if (open) {
+            setModel(getSelectedModel());
+            setLlamaCppUrl(getLlamaCppUrl());
+        }
+    };
 
+    const handleSave = () => {
+        saveLlmConfig(model, llamaCppUrl);
     };
 
     const handleLogout = () => {
@@ -49,7 +50,7 @@ export function SettingsModal() {
     }
 
     return (
-        <Dialog>
+        <Dialog onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                     <Settings className="h-4 w-4" />

@@ -47,33 +47,35 @@ export function MarketTable() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const loadMarkets = useCallback(async (isManualRefresh = false) => {
-        if (isManualRefresh) {
-            setIsRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-
-        try {
-            const data = await fetchMarkets();
-            setMarkets(data);
-            setLoadError(null);
-            if (isManualRefresh) {
-                toast.success('Watchlist refreshed', { description: `${data.length} markets synchronized.` });
-            }
-        } catch {
-            const message = 'Unable to load markets. Verify backend connectivity.';
-            setLoadError(message);
-            toast.error('Market feed unavailable', { description: message });
-        } finally {
-            setLoading(false);
-            setIsRefreshing(false);
-        }
-    }, []);
+    // State changes only once the request settles (in the callbacks). `loading` starts
+    // true for the first load; a refresh sets isRefreshing before calling this.
+    const loadMarkets = useCallback((isManualRefresh = false) =>
+        fetchMarkets()
+            .then((data) => {
+                setMarkets(data);
+                setLoadError(null);
+                if (isManualRefresh) {
+                    toast.success('Watchlist refreshed', { description: `${data.length} markets synchronized.` });
+                }
+            })
+            .catch(() => {
+                const message = 'Unable to load markets. Verify backend connectivity.';
+                setLoadError(message);
+                toast.error('Market feed unavailable', { description: message });
+            })
+            .finally(() => {
+                setLoading(false);
+                setIsRefreshing(false);
+            }), []);
 
     useEffect(() => {
         loadMarkets();
     }, [loadMarkets]);
+
+    const refreshMarkets = () => {
+        setIsRefreshing(true);
+        loadMarkets(true);
+    };
 
     const filteredMarkets = useMemo(() => {
         const categoryFiltered = filter === 'ALL'
@@ -433,7 +435,7 @@ export function MarketTable() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8 border-white/10 bg-black/30 hover:bg-white/10"
-                                onClick={() => loadMarkets(true)}
+                                onClick={refreshMarkets}
                                 disabled={isRefreshing}
                                 aria-label="Refresh watchlist"
                             >
