@@ -43,6 +43,7 @@ backend/
 3. **Step 1 (Generate)**: Call the local llama.cpp-compatible service on `text-gen-cpp` and request the default `lfm-thinking` model.
 4. **Step 2 (Verify)**: Pass result to the Critic service (the local model, or Gemini when configured).
 5. **Result**: If verified, save to DB. If rejected, discard.
+6. **Progress**: The UI follows the task on `WS /ws/lifecycle/{task_id}` (status events, then `complete` or `failed`). A client's first message must be `{"type": "auth", "token": "<access token>"}`, since browsers cannot set headers on a WebSocket. Without a valid one the server sends a `failed` event and closes: 1008 if no sign-in message arrives within 10 s, 4401 if the token is missing or rejected, 4403 for a disabled account.
 
 ### B. The Critic verification
 - **Input**: A claim string + citations.

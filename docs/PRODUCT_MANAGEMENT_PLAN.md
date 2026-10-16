@@ -806,7 +806,7 @@ These apply to every card below and are not repeated in each one.
   - Every run also makes an unstructured "semantic correlations" LLM call and appends its output to the reasoning under "Secondary Correlations Discovered", with no schema, citations or Critic review. This is a patent-claimed capability (`Patent.md` §4) with no keep or cut decision.
 - **Decision:** Fix.
 - **Requirements:**
-  1. **Lifecycle:** async Redis pub/sub WebSocket with an authenticated subscribe; statuses `queued|running|complete|failed` with error codes; Celery `autoretry` on transient errors only.
+  1. **Lifecycle:** async Redis pub/sub WebSocket with an authenticated subscribe; statuses `queued|running|complete|failed` with error codes; Celery `autoretry` on transient errors only. The async pub/sub (`1c64685`) and the authenticated subscribe (`3378fc4`, QA-004) are done; the socket does not yet check who owns the task (QA-018).
   2. **Results:** persisted to `forecast_runs` (VW-01c); cache keyed by `(question, model, data as-of)` with a TTL; GET is ownership-checked.
   3. **Inputs:**
      - Physical data either comes from a real feed or is labeled `SYNTHETIC` in both source title and URL scheme. Never use real vendor names for synthetic data.
