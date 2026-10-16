@@ -283,14 +283,14 @@ These apply to every card below and are not repeated in each one.
   - No app chrome, and no link points to it.
 - **Decision:** Merge. Redirect to `/dashboard/intelligence` behind auth once PG-03 ships the `/dashboard/[view]` routes (Phase 1). Until then, redirect to `/dashboard`.
 - **Requirements:**
-  1. Logged-out access goes to `/login`.
+  1. Logged-out access goes to `/login`. **Done** in `64b8dd9` (QA-035); the page is admin-only, like the dashboard view.
   2. The old URL issues a 308 to the new one.
 - **Priority / Phase / Size:** P1 · 0 · S
 
 #### PG-05: `/portfolio` (standalone page)
 - **Job:** None distinct. It duplicates the Portfolio view, with mock data.
 - **Today:**
-  - **No auth guard** (QA-035).
+  - **No auth guard** (QA-035). Fixed in `64b8dd9`: signed-out visitors go to `/login`.
   - $2.1M mock book.
   - Refresh and LAYOUT buttons do nothing.
   - The "Return to terminal" link goes to the landing page.
