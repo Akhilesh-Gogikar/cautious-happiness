@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
+from app.core.auth import get_current_active_user
 from app.intelligence.application.mirror import MirrorService
 from app.mirror.models import AnalysisResult, Competitor
 
-router = APIRouter(prefix="/mirror", tags=["intelligence-mirror"])
+# Every /mirror route needs a signed-in user (QA-012).
+router = APIRouter(prefix="/mirror", tags=["intelligence-mirror"], dependencies=[Depends(get_current_active_user)])
 mirror_service = MirrorService()
 
 
