@@ -1,15 +1,21 @@
+import { apiFetch, openApiSocket } from './auth/session';
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+class AuthError extends Error {}
 
 async function fetchWithRetry(url: string, options: RequestInit, retries = 3, backoff = 1000) {
     try {
-        const res = await fetch(url, options);
+        const res = await apiFetch(url, options);
         if (!res.ok) {
             const errorText = await res.text();
-            throw new Error(errorText || `Status ${res.status}`);
+            const message = errorText || `Status ${res.status}`;
+            // Retrying cannot fix a missing or insufficient sign-in.
+            throw res.status === 401 || res.status === 403 ? new AuthError(message) : new Error(message);
         }
         return await res.json();
     } catch (err: any) {
-        if (retries > 0) {
+        if (retries > 0 && !(err instanceof AuthError)) {
             console.warn(`Fetch failed: ${err.message}. Retrying in ${backoff}ms... (${retries} attempts left)`);
             await new Promise(resolve => setTimeout(resolve, backoff));
             return fetchWithRetry(url, options, retries - 1, backoff * 2);
@@ -19,7 +25,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3, ba
 }
 
 export async function fetchMarkets() {
-    const res = await fetch(`${API_URL}/markets`);
+    const res = await apiFetch(`${API_URL}/markets`);
     if (!res.ok) throw new Error('Failed to fetch markets');
     return res.json();
 }
@@ -33,9 +39,14 @@ export async function predictMarket(question: string) {
 }
 
 export async function getTaskStatus(taskId: string) {
-    const res = await fetch(`${API_URL}/prediction/task/${taskId}`);
+    const res = await apiFetch(`${API_URL}/prediction/task/${taskId}`);
     if (!res.ok) throw new Error('Failed to fetch task status');
     return res.json();
+}
+
+/** The task's lifecycle events (status, then complete or failed) as JSON messages. */
+export function openTaskLifecycle(taskId: string): WebSocket {
+    return openApiSocket(API_URL.replace('http', 'ws') + `/ws/lifecycle/${taskId}`);
 }
 
 export interface ChatMessage {
@@ -88,7 +99,7 @@ export interface MirrorAnalysisResult {
 }
 
 export async function fetchMirrorCompetitors(): Promise<MirrorCompetitor[]> {
-    const res = await fetch(`${API_URL}/mirror/competitors`);
+    const res = await apiFetch(`${API_URL}/mirror/competitors`);
     if (!res.ok) throw new Error('Failed to fetch competitors');
     return res.json();
 }
@@ -99,8 +110,20 @@ export async function analyzeMirrorTarget(targetId: string): Promise<MirrorAnaly
     });
 }
 
+export interface AlpacaStatus {
+    configured: boolean;
+    paper: boolean;
+}
+
+/** Whether the server holds Alpaca credentials (they live only on the server). */
+export async function fetchAlpacaStatus(): Promise<AlpacaStatus> {
+    const res = await apiFetch(`${API_URL}/tools/alpaca/status`);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    return res.json();
+}
+
 export async function fetchSystemHealth(): Promise<SystemHealth> {
-    const res = await fetch(`${API_URL}/health`);
+    const res = await apiFetch(`${API_URL}/health`);
     if (!res.ok) throw new Error('Failed to fetch system health');
     return res.json();
 }
@@ -133,7 +156,7 @@ export async function chatWithModelStream(
         onDone?: (response: string) => void;
     }
 ) {
-    const res = await fetch(`${API_URL}/chat/stream`, {
+    const res = await apiFetch(`${API_URL}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -146,6 +169,7 @@ export async function chatWithModelStream(
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let finished = false;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -161,14 +185,22 @@ export async function chatWithModelStream(
             const dataLine = lines.find(l => l.startsWith('data:'))?.slice(5).trim();
             if (!event || !dataLine) continue;
 
+            let data: any;
             try {
-                const data = JSON.parse(dataLine);
-                if (event === 'thinking' && data.message) handlers.onThinking?.(data.message);
-                if (event === 'token' && data.token) handlers.onToken?.(data.token);
-                if (event === 'done') handlers.onDone?.(data.response || '');
+                data = JSON.parse(dataLine);
             } catch {
-                // Ignore malformed events, keep stream alive.
+                continue; // Ignore malformed events, keep stream alive.
+            }
+            if (event === 'thinking' && data.message) handlers.onThinking?.(data.message);
+            if (event === 'token' && data.token) handlers.onToken?.(data.token);
+            if (event === 'error') throw new Error(data.message || 'Streaming chat failed');
+            if (event === 'done') {
+                finished = true;
+                handlers.onDone?.(data.response || '');
             }
         }
     }
+
+    // A stream that ends without `done` was cut off; don't present it as complete.
+    if (!finished) throw new Error('Streaming chat ended before completion');
 }

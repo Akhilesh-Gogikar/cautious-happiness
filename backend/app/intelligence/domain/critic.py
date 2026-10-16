@@ -1,10 +1,26 @@
 from __future__ import annotations
 
+import logging
 from typing import List
 
-from app.core.ai_client import ai_client
+from app.core.ai_client import ai_client, gemini_model
 from app.intelligence.domain.dtypes import StructuredCriticResult
 from app.models import Source
+
+logger = logging.getLogger("alpha_insights")
+
+
+CRITIC_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "critique": {"type": "string"},
+        # llama-server's grammar ignores minimum/maximum on numbers; the score
+        # is clamped after parsing instead.
+        "score": {"type": "number"},
+        "risk_factors": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["critique", "score", "risk_factors"],
+}
 
 
 class CriticService:
@@ -25,22 +41,41 @@ Proposed Forecast:
 OUTPUT SCHEMA (STRICT JSON):
 {{
     "critique": "string",
-    "score": float,
+    "score": float (the adjusted mirror score, 0.0 to 1.0),
     "risk_factors": ["string"]
 }}
 [/INST]
 """
         try:
-            provider = "gemini" if "gemini" in ai_client.providers else "ollama"
-            raw_json = await ai_client.generate_json(
-                prompt,
-                provider=provider,
-                model="gemini-1.5-flash" if provider == "gemini" else "ollama-critic",
-            )
-            return StructuredCriticResult(**raw_json)
+            result = await self._critique(prompt)
+            result.score = min(1.0, max(0.0, result.score))
+            return result
         except Exception as exc:
+            # Users see this text and it is stored with the forecast, so it names
+            # the error type only; the details go to the server log.
+            logger.warning(f"Critic unavailable ({type(exc).__name__}): {exc}")
             return StructuredCriticResult(
-                critique=f"Critic unavailable: {exc}",
+                critique=f"Critic unavailable ({type(exc).__name__}).",
                 score=initial_prob,
-                risk_factors=[f"System Error: {exc}"],
+                risk_factors=[f"System Error: {type(exc).__name__}"],
             )
+
+    async def _critique(self, prompt: str) -> StructuredCriticResult:
+        if "gemini" in ai_client.providers:
+            try:
+                return StructuredCriticResult(
+                    **await ai_client.generate_json(
+                        prompt, provider="gemini", model=gemini_model(), json_schema=CRITIC_SCHEMA
+                    )
+                )
+            except Exception as exc:
+                # Log the type only; the message can include request details.
+                logger.warning(f"Gemini critic failed ({type(exc).__name__}); using the local model")
+        # The local model that docker compose serves.
+        raw_json = await ai_client.generate_json(
+            prompt,
+            provider="llama-cpp",
+            model="lfm-thinking",
+            json_schema=CRITIC_SCHEMA,
+        )
+        return StructuredCriticResult(**raw_json)

@@ -29,7 +29,7 @@ Please refer to the [Documentation Style Guide](docs/style_guide.md) for detaile
 
 ## Pull Request Process
 
-1.  Ensure your code builds and runs locally.
+1.  Ensure your code builds and runs locally (for the frontend: `npm run lint` and `npm run build` in `frontend/`).
 2.  Update documentation if you are changing functionality.
 3.  Submit a Pull Request with a clear description of the changes.
 

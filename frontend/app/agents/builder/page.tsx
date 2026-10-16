@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useRequireAuth } from '@/lib/auth';
+import { AuthPending } from '@/components/auth/auth-pending';
 import { Sidebar } from '@/components/ui/sidebar';
 import { SettingsModal } from '@/components/settings/settings-modal';
 import { NotificationCenter } from '@/components/layout/notification-center';
@@ -12,22 +11,10 @@ import { Globe, ShieldCheck, Play, Save } from 'lucide-react';
 import { AgentBuilderCanvas } from '@/components/agent-builder/AgentBuilderCanvas';
 
 export default function AgentBuilderPage() {
-    const { user, isLoading } = useAuth();
+    const user = useRequireAuth('Admin');
     const router = useRouter();
 
-    useEffect(() => {
-        if (!isLoading && !user) {
-            router.push('/login');
-        } else if (!isLoading && user?.role !== 'Admin') {
-            router.push('/dashboard');
-        }
-    }, [user, isLoading, router]);
-
-    if (isLoading || !user) {
-        return <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-t-2 border-primary animate-spin" />
-        </div>;
-    }
+    if (!user) return <AuthPending />;
 
     return (
         <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30 selection:text-white">
@@ -76,11 +63,6 @@ export default function AgentBuilderPage() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <ConnectButton
-                                accountStatus={{ smallScreen: 'avatar', largeScreen: 'full' }}
-                                showBalance={false}
-                                chainStatus="icon"
-                            />
                             <NotificationCenter />
                             <SettingsModal />
                         </div>

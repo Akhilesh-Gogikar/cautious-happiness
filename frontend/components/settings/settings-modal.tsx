@@ -15,39 +15,33 @@ import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER, DEFAULT_LLAMA_CPP_URL } from "@/lib/llm-config";
+import { DEFAULT_LLM_MODEL, DEFAULT_LLM_PROVIDER, DEFAULT_LLAMA_CPP_URL, getLlamaCppUrl, getSelectedModel, saveLlmConfig } from "@/lib/llm-config";
 import { useRouter } from "next/navigation";
 
 export function SettingsModal() {
     const [model, setModel] = useState(DEFAULT_LLM_MODEL);
     const [llamaCppUrl, setLlamaCppUrl] = useState(DEFAULT_LLAMA_CPP_URL);
-    const [geminiKey, setGeminiKey] = useState("");
-    const [alpacaKey, setAlpacaKey] = useState("");
-    const [alpacaSecret, setAlpacaSecret] = useState("");
-    const { user, toggleRole, logout } = useAuth();
+    const { user, logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        const storedAlpacaKey = localStorage.getItem("ALPACA_API_KEY");
-        const storedAlpacaSecret = localStorage.getItem("ALPACA_SECRET_KEY");
-        if (storedAlpacaKey) setAlpacaKey(storedAlpacaKey);
-        if (storedAlpacaSecret) setAlpacaSecret(storedAlpacaSecret);
-
-        const storedModel = localStorage.getItem("POLY_MODEL");
-        const storedLlamaCppUrl = localStorage.getItem("LLAMA_CPP_URL");
-        const storedGeminiKey = localStorage.getItem("POLY_GEMINI_KEY");
-        if (storedModel) setModel(storedModel);
-        if (storedLlamaCppUrl) setLlamaCppUrl(storedLlamaCppUrl);
-        if (storedGeminiKey) setGeminiKey(storedGeminiKey);
+        // Credentials live on the server now; drop copies earlier versions kept here.
+        localStorage.removeItem("ALPACA_API_KEY");
+        localStorage.removeItem("ALPACA_SECRET_KEY");
+        // Earlier versions kept a Gemini key here that nothing used; drop it.
+        localStorage.removeItem("POLY_GEMINI_KEY");
     }, []);
 
-    const handleSave = () => {
-        localStorage.setItem("POLY_MODEL", model || DEFAULT_LLM_MODEL);
-        localStorage.setItem("LLAMA_CPP_URL", llamaCppUrl || DEFAULT_LLAMA_CPP_URL);
-        if (geminiKey) localStorage.setItem("POLY_GEMINI_KEY", geminiKey);
+    // Show the saved values each time the dialog opens; unsaved edits are dropped.
+    const handleOpenChange = (open: boolean) => {
+        if (open) {
+            setModel(getSelectedModel());
+            setLlamaCppUrl(getLlamaCppUrl());
+        }
+    };
 
-        if (alpacaKey) localStorage.setItem("ALPACA_API_KEY", alpacaKey);
-        if (alpacaSecret) localStorage.setItem("ALPACA_SECRET_KEY", alpacaSecret);
+    const handleSave = () => {
+        saveLlmConfig(model, llamaCppUrl);
     };
 
     const handleLogout = () => {
@@ -56,7 +50,7 @@ export function SettingsModal() {
     }
 
     return (
-        <Dialog>
+        <Dialog onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                     <Settings className="h-4 w-4" />
@@ -73,51 +67,24 @@ export function SettingsModal() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto">
-                    {/* Role Switcher for Admin Only */}
-                    {user?.email.toLowerCase() === 'aki@onenew.ai' && (
-                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg space-y-3">
+                    {user && (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
                             <Label className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center justify-between">
-                                <span>Demo Controls</span>
-                                <span className="text-white/50 lowercase tracking-normal bg-black/50 px-2 py-0.5 rounded border border-white/10">Active: {user.role}</span>
+                                <span>Signed In</span>
+                                <span className="text-white/50 lowercase tracking-normal bg-black/50 px-2 py-0.5 rounded border border-white/10">{user.serverRole}</span>
                             </Label>
-                            <Button
-                                variant="outline"
-                                onClick={toggleRole}
-                                className="w-full text-xs font-mono border-primary/30 hover:bg-primary hover:text-black transition-colors"
-                            >
-                                Switch to {user.role === 'Admin' ? 'User' : 'Admin'} Role
-                            </Button>
+                            <p className="mt-2 text-xs text-white font-mono">{user.username}</p>
                         </div>
                     )}
 
                     <div className="space-y-4">
                         <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1">Provider Config</Label>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="alpaca-key" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Alpaca API Key
-                            </Label>
-                            <Input
-                                id="alpaca-key"
-                                type="password"
-                                value={alpacaKey}
-                                onChange={(e) => setAlpacaKey(e.target.value)}
-                                placeholder="PK..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="alpaca-secret" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Alpaca Secret Key
-                            </Label>
-                            <Input
-                                id="alpaca-secret"
-                                type="password"
-                                value={alpacaSecret}
-                                onChange={(e) => setAlpacaSecret(e.target.value)}
-                                placeholder="..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Alpaca</p>
+                            <p className="text-[10px] text-muted-foreground">
+                                Set on the server with <span className="text-white">ALPACA_API_KEY</span> and <span className="text-white">ALPACA_SECRET_KEY</span> in <span className="text-white">.env</span>. Paper trading unless <span className="text-white">ALPACA_BASE_URL</span> points at the live API.
+                            </p>
                         </div>
 
                         <Label className="text-[10px] font-bold text-primary uppercase tracking-widest block border-b border-primary/20 pb-1 mt-4">Model Config</Label>
@@ -148,18 +115,11 @@ export function SettingsModal() {
                             <p className="text-[10px] text-muted-foreground">Provider: <span className="text-white">{DEFAULT_LLM_PROVIDER}</span> (fallback for all local model requests)</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="gemini" className="text-xs font-bold text-white/50 uppercase tracking-wider">
-                                Gemini API Key (Critic)
-                            </Label>
-                            <Input
-                                id="gemini"
-                                type="password"
-                                value={geminiKey}
-                                onChange={(e) => setGeminiKey(e.target.value)}
-                                placeholder="Ex: AIzaSy..."
-                                className="bg-white/5 border-white/10 text-primary font-mono text-xs focus-visible:ring-primary/50 focus-visible:border-primary/50 h-10"
-                            />
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Gemini (Critic)</p>
+                            <p className="text-[10px] text-muted-foreground">
+                                Set on the server with <span className="text-white">GEMINI_API_KEY</span> in <span className="text-white">.env</span>. Without it the critic uses the local model.
+                            </p>
                         </div>
                     </div>
                 </div>

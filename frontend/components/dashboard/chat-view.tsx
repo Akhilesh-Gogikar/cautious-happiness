@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Send, Bot, User, Sparkles, ShieldCheck, BrainCircuit, Zap } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { chatWithModelStream } from '@/lib/api';
-import { getSelectedModel, DEFAULT_LLM_PROVIDER } from '@/lib/llm-config';
+import { useSelectedModel, DEFAULT_LLM_PROVIDER } from '@/lib/llm-config';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -27,7 +27,7 @@ export function ChatView() {
     const [isLoading, setIsLoading] = useState(false);
     const [thinkingMessage, setThinkingMessage] = useState('');
     const [persona, setPersona] = useState<'Analyst' | 'RiskManager'>('Analyst');
-    const [activeModel, setActiveModel] = useState('lfm-thinking');
+    const activeModel = useSelectedModel();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -35,10 +35,6 @@ export function ChatView() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
-
-    useEffect(() => {
-        setActiveModel(getSelectedModel());
-    }, []);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;

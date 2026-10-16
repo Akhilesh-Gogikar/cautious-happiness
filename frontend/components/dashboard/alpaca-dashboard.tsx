@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, TrendingUp, BarChart3, AlertCircle, RefreshCw } from "lucide-react";
+import { API_URL, fetchAlpacaStatus } from "@/lib/api";
+import { apiFetch } from "@/lib/auth/session";
+
+const NOT_CONFIGURED = "Alpaca is not configured on the server. Set ALPACA_API_KEY and ALPACA_SECRET_KEY in the server's .env.";
 
 interface AlpacaAccount {
     account_number: string;
@@ -26,21 +30,16 @@ export function AlpacaDashboard() {
     const [positions, setPositions] = useState<AlpacaPosition[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [paper, setPaper] = useState(true);
 
     const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('token');
-            const apiKey = localStorage.getItem("ALPACA_API_KEY");
-            const secretKey = localStorage.getItem("ALPACA_SECRET_KEY");
+            // The server holds the Alpaca credentials; apiFetch sends the session token.
+            const headers = { 'Content-Type': 'application/json' };
 
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            if (apiKey) headers['x-alpaca-api-key'] = apiKey;
-            if (secretKey) headers['x-alpaca-secret'] = secretKey;
-
-            const accountResp = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tools/call`, {
+            const accountResp = await apiFetch(`${API_URL}/tools/call`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'get_account', arguments: {} })
@@ -50,10 +49,10 @@ export function AlpacaDashboard() {
                 const data = await accountResp.json();
                 setAccount(data);
             } else {
-                setError("Failed to fetch Alpaca account. Ensure credentials are set.");
+                setError(accountResp.status === 503 ? NOT_CONFIGURED : "Failed to fetch the Alpaca account. Check the server's Alpaca credentials.");
             }
 
-            const positionsResp = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tools/call`, {
+            const positionsResp = await apiFetch(`${API_URL}/tools/call`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ connector: 'alpaca', name: 'list_positions', arguments: {} })
@@ -72,13 +71,20 @@ export function AlpacaDashboard() {
     };
 
     useEffect(() => {
-        const apiKey = localStorage.getItem("ALPACA_API_KEY");
-        if (apiKey) {
-            fetchData();
-        } else {
-            setLoading(false);
-            setError("No Alpaca credentials found in settings. Please configure them in SYSTEM_CONFIG.");
-        }
+        fetchAlpacaStatus()
+            .then((status) => {
+                setPaper(status.paper);
+                if (status.configured) {
+                    fetchData();
+                } else {
+                    setLoading(false);
+                    setError(NOT_CONFIGURED);
+                }
+            })
+            .catch(() => {
+                setLoading(false);
+                setError("Connection error. Is the backend running?");
+            });
     }, []);
 
     if (loading && !account) {
@@ -121,7 +127,7 @@ export function AlpacaDashboard() {
                         <h2 className="text-sm font-black text-white uppercase tracking-tighter">Alpaca_Markets</h2>
                         <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-[9px] font-mono text-muted-foreground uppercase">Connection_Active // Paper_Trading</span>
+                            <span className="text-[9px] font-mono text-muted-foreground uppercase">Connection_Active // {paper ? "Paper_Trading" : "Live_Trading"}</span>
                         </div>
                     </div>
                 </div>

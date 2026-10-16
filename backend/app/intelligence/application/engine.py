@@ -7,6 +7,15 @@ from app.intelligence.application.forecasting import IntelligenceService
 from app.intelligence.domain.critic import CriticService
 
 
+def format_correlations(correlations: list) -> str:
+    """Markdown section listing the related markets, or "" when there are none."""
+    items = [c.strip() for c in correlations or [] if isinstance(c, str) and c.strip()]
+    if not items:
+        return ""
+    listed = "\n".join(f"- {item}" for item in items)
+    return f"\n\n**Secondary Correlations Discovered:**\n{listed}"
+
+
 class FallbackModelOrchestrator:
     def __init__(self, primary: str = "lfm-thinking", secondaries: list[str] | None = None):
         self.tiers = [primary] + (secondaries or ["lfm-40b"])
@@ -64,9 +73,7 @@ class IntelligenceMirrorEngine:
                 )
 
             avg_score, reasoning, analysis = forecast_task.result()
-            correlations = correlation_task.result()
-            if correlations:
-                reasoning += f"\n\n**Secondary Correlations Discovered:**\n{correlations}"
+            reasoning += format_correlations(correlation_task.result())
 
             if status_callback:
                 await status_callback("Running intelligence audit...")

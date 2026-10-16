@@ -30,5 +30,7 @@ async def chat_stream_endpoint(req: ChatRequest, current_user: User = Depends(ge
     return StreamingResponse(
         chat_service.stream_message(current_user.username, req),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        # X-Accel-Buffering: nginx passes tokens through as they arrive
+        # instead of holding the reply until the model finishes.
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )

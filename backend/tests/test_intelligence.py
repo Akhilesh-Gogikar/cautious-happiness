@@ -1,3 +1,8 @@
+import sys
+import threading
+import time
+import types
+
 import pytest
 from app.domain.intelligence.models import NewsItem, SentimentScore
 from app.domain.intelligence.sentiment import SentimentAnalyzer
@@ -9,19 +14,63 @@ from unittest.mock import patch, MagicMock
 # The plan asked for "Unit Test for Sentiment", implying real model check.
 # But for speed, I'll test the logic around it first.
 
-def test_sentiment_model_loading():
-    analyzer = SentimentAnalyzer()
-    
-    # Configure mock pipeline to return valid data (list of dicts)
-    if analyzer.pipeline:
-        analyzer.pipeline.return_value = [{'label': 'positive', 'score': 0.99}]
-    
-    # If the model fails to load (e.g. no internet), pipeline is None.
-    # We just check accurate handling.
-    if analyzer.pipeline:
+def _fake_transformers(monkeypatch, fail=False, delay=0.0):
+    """Install a stand-in `transformers` module; returns the list of model loads."""
+    loads = []
+
+    def from_pretrained(name):
+        loads.append(name)
+        time.sleep(delay)
+        if fail:
+            raise OSError("model download blocked")
+        return object()
+
+    fake = types.ModuleType("transformers")
+    fake.AutoTokenizer = types.SimpleNamespace(from_pretrained=from_pretrained)
+    fake.AutoModelForSequenceClassification = types.SimpleNamespace(from_pretrained=from_pretrained)
+    fake.pipeline = lambda task, model, tokenizer: (lambda text, **kwargs: [{"label": "positive", "score": 0.97}])
+    monkeypatch.setitem(sys.modules, "transformers", fake)
+    return loads
+
+
+@pytest.fixture
+def analyzer(monkeypatch):
+    # SentimentAnalyzer is a process-wide singleton; give each test a clean slate.
+    instance = SentimentAnalyzer()
+    monkeypatch.setattr(instance, "pipeline", None)
+    monkeypatch.setattr(instance, "_load_attempted", False)
+    return instance
+
+
+def test_sentiment_model_loads_lazily_once(monkeypatch, analyzer):
+    loads = _fake_transformers(monkeypatch)
+    assert SentimentAnalyzer() is analyzer and loads == []  # nothing loaded at construction
+
+    for _ in range(2):
         result = analyzer.analyze("Apple profits are up 50%")
-        assert result.label in ["positive", "neutral", "negative"]
-        assert 0.0 <= result.score <= 1.0
+        assert (result.label, result.score) == ("positive", 0.97)
+    assert loads == ["ProsusAI/finbert", "ProsusAI/finbert"]  # tokenizer + model, once
+
+
+def test_concurrent_first_calls_wait_for_the_load(monkeypatch, analyzer):
+    loads = _fake_transformers(monkeypatch, delay=0.2)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(analyzer.analyze("Copper rallies"))) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert [r.label for r in results] == ["positive"] * 8
+    assert len(loads) == 2
+
+
+def test_failed_load_returns_neutral_and_is_not_retried(monkeypatch, analyzer):
+    loads = _fake_transformers(monkeypatch, fail=True)
+    for _ in range(2):
+        result = analyzer.analyze("Oil slips")
+        assert (result.label, result.score) == ("neutral", 0.0)
+    assert len(loads) == 1
+
 
 def test_feed_manager_fetch():
     # Mock feedparser

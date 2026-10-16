@@ -4,7 +4,7 @@
 The Frontend is a specialized "Data Noir" terminal designed for high-density information display. It prioritizes speed, readability, and "Institutional" aesthetics over playful consumer design.
 
 ## 1. Key Technologies
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router, Turbopack), React 19
 - **Styling**: Tailwind CSS
 - **State**: React Query + Context
 - **Charts**: Recharts / Lightweight Charts
@@ -46,11 +46,18 @@ frontend/
 ## 5. Development Guide
 
 ### Running Locally
+Needs Node.js 20.9 or newer; the Docker image uses Node 24 LTS.
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
+
+Open the dev server at http://localhost:3000 (or 127.0.0.1). `next dev` serves its dev resources only to localhost and the origins in `allowedDevOrigins` (`next.config.js`); opened from another host or a LAN IP, the page loads but never becomes interactive until that origin is added there.
+
+Checks: `npm run lint` (ESLint, `eslint.config.mjs`) and `npm run build`. `next build` type-checks but no longer lints. For a standalone type-check on a fresh checkout, run `npx next typegen` first, then `npx tsc --noEmit`.
+
+Change dependencies with npm 11 (Node 24): it records each native package's libc in `package-lock.json`, so the Alpine image installs only the musl builds. npm 10 drops those fields.
 
 ### Adding a Page
 1.  Create `app/dashboard/new-feature/page.tsx`.

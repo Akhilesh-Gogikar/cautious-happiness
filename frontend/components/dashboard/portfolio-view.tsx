@@ -4,19 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, PieChart, TrendingUp, DollarSign, Activity, Target, Zap, ShieldAlert, BarChart3, Layers } from 'lucide-react';
 import { useEffect, useState } from "react";
 import { AlpacaDashboard } from "./alpaca-dashboard";
+import { fetchAlpacaStatus } from "@/lib/api";
+import { useIsClient } from "@/lib/use-is-client";
 
 export function PortfolioView() {
-    const [mounted, setMounted] = useState(false);
+    const isClient = useIsClient();
     const [hasAlpacaAuth, setHasAlpacaAuth] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
-        if (localStorage.getItem("ALPACA_API_KEY")) {
-            setHasAlpacaAuth(true);
-        }
+        fetchAlpacaStatus()
+            .then((status) => setHasAlpacaAuth(status.configured))
+            .catch(() => setHasAlpacaAuth(false));
     }, []);
 
-    if (!mounted) return null;
+    if (!isClient) return null;
 
     if (hasAlpacaAuth) {
         return <AlpacaDashboard />;

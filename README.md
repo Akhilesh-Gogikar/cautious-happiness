@@ -11,7 +11,7 @@ The **Alpha Insights Platform** is a containerized FastAPI and Next.js project f
 
 ## Core Capabilities
 
-- **Local forecasting path**: `POST /prediction/predict` queues market questions through Celery and the default compose stack routes model calls to the local `text-gen-cpp` / llama.cpp-compatible service.
+- **Local forecasting path**: `POST /prediction/predict` queues market questions through Celery and the default compose stack routes model calls to `text-gen-cpp`, a llama.cpp server running the local `lfm-thinking` model.
 - **Critic review loop**: The Critic agent scores stored market insights and records written critique text for follow-up analysis.
 - **Intelligence APIs**: The backend exposes market, news, mirror, scanner, strategy, trade, chat, and tool routes for experimenting with research workflows.
 - **Data-dense UI**: The Next.js dashboard gives visitors a frontend surface for the backend workflows and product framing.
@@ -20,10 +20,11 @@ The **Alpha Insights Platform** is a containerized FastAPI and Next.js project f
 
 The repository historically used names such as **OpenForecaster**, **Ollama**, and **Qwen 2.5** in docs and model setup notes. The current checked-in runtime is different:
 
-- **Inference container**: `text-gen-cpp` in `docker-compose.yml`, exposed internally via `LLAMA_CPP_HOST=http://text-gen-cpp:8080`.
-- **Default local model**: `lfm-thinking`, downloaded by `backend/setup_model.sh` into the shared model volume.
+- **Inference container**: `text-gen-cpp` in `docker-compose.yml` runs llama.cpp's `llama-server` (pinned image `ghcr.io/ggml-org/llama.cpp:server-b11243`) on the downloaded GGUF. The app reaches it at `LLAMA_CPP_HOST=http://text-gen-cpp:8080`; the host sees it on `127.0.0.1:8080` only. The backend uses its OpenAI-compatible chat route, so the model's own chat template applies, and removes the model's `<think>` reasoning from answers.
+- **Default local model**: `lfm-thinking` (LiquidAI LFM2.5-1.2B-Thinking, Q4_K_M GGUF), downloaded by `backend/setup_model.sh` into the shared model volume.
+- **Without the model**: `docker compose -f docker-compose.yml -f docker-compose.mock-llm.yml up --build` swaps in `text-gen-cpp-mock`, which returns canned text and skips the download. Use it for CI and UI work, not analysis.
 - **Alias behavior in code**: Some backend paths still accept `openforecaster` as a request alias, but normalize it to `lfm-thinking`.
-- **Fallback note**: `lfm-40b` still appears as a secondary fallback identifier in code, but it is **not** provisioned by the default compose stack.
+- **Fallback note**: `lfm-40b` still appears as a secondary fallback identifier in code. The compose stack has no separate model for it, so it runs on the same local `lfm-thinking` server.
 
 If you are onboarding or automating this repo, treat `text-gen-cpp` + `lfm-thinking` as the source of truth for the default local inference path.
 
@@ -34,7 +35,7 @@ The platform operates as a containerized microservices architecture:
 - **Frontend**: Next.js + React (Data Noir Design System)
 - **Backend**: FastAPI (Python) for orchestration and business logic
 - **Inference Engine**: `text-gen-cpp` (llama.cpp-compatible HTTP service) for the default local model path
-- **Verification Layer**: Google Gemini API for the Critic agent
+- **Verification Layer**: the forecast critic runs on the local model, or on the Google Gemini API when `GEMINI_API_KEY` is set
 - **Data Layer**: PostgreSQL (Persistence) + Redis (Cache/Queue)
 
 For a detailed technical breakdown, please refer to [Architecture Deep Dive](docs/ARCHITECTURE.md).
@@ -43,7 +44,8 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
 
 ### Prerequisites
 - **Docker & Docker Compose**: Essential for container orchestration.
-- **Gemini API Key**: Required for the **Critic** agent's verification capabilities.
+- **Memory**: roughly 2 GB free for the model server, on top of the app containers.
+- **Gemini API Key** (optional): when set, the forecast critic (the Neural Audit critique) uses Gemini, falling back to the local model if Gemini fails. Insight scoring always uses the local model.
 
 ### Installation
 
@@ -54,11 +56,15 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
     ```
 
 2.  **Configuration**
-    The system creates a `.env` file on first run. You must populate it with your credentials.
+    The system creates a `.env` file on first run. Fill in the credentials you need; the local model needs none.
     ```bash
-    # Required for 'Critic' verification agent
-    GEMINI_API_KEY=your_key_here
+    # Optional: run the forecast critic on Gemini instead of the local model
+    GEMINI_API_KEY=
     
+    # Optional: Alpaca account and orders (kept on the server; the UI never sees them)
+    ALPACA_API_KEY=...
+    ALPACA_SECRET_KEY=...
+
     # Optional: Polymarket execution
     POLYMARKET_API_KEY=...
     POLYMARKET_SECRET=...
@@ -71,11 +77,15 @@ For a detailed technical breakdown, please refer to [Architecture Deep Dive](doc
     ./run.sh
     ```
     > [!NOTE]
-    > **Initial Setup**: The first launch downloads the default `lfm-thinking` GGUF model (roughly 1-5 GB depending on the selected artifact and cache state). Review progress with `docker compose logs -f setup_model`.
+    > **Initial Setup**: The first launch downloads the default `lfm-thinking` GGUF model (about 730 MB; later starts reuse it). Review progress with `docker compose logs -f setup_model`; `text-gen-cpp` turns healthy once the model has loaded.
 
 ### Access Points
 - **Terminal Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **From other machines**: through nginx on ports 80/443. Compose publishes the dashboard and API ports on `127.0.0.1` only, so the two links above work on the machine running the stack.
+
+### Signing in
+The dashboard signs in against the backend. It ships with four development accounts: `admin` (sees the admin-only views), `trader`, `analyst` and `risk` (risk manager). Their passwords are development defaults set in `backend/app/services/user_service.py`; change them before anyone else can reach the app. Sessions last `ACCESS_TOKEN_EXPIRE_MINUTES` (from `.env`) and are signed with `SECRET_KEY`, which `./run.sh` generates.
 
 ## Current Maturity Snapshot
 
@@ -104,6 +114,8 @@ This framing is intentional: the repo shows strong direction and meaningful impl
 - **Design System**: [Style Guide](docs/style_guide.md)
 - **Product Framing**: [Product Framework](docs/PRODUCT_FRAMEWORK.md)
 - **Execution Plan**: [YC-Style Product Development Plan](docs/YC_PRODUCT_DEVELOPMENT_PLAN.md)
+- **Feature-Level Plan**: [Product Management Plan](docs/PRODUCT_MANAGEMENT_PLAN.md) (every page and feature, with decision, requirements and phase)
+- **Quality Baseline**: [QA Test Report](docs/QA_TEST_REPORT.md) (full test pass, defect log)
 - **Strategic Vision**: [Vision & Roadmap](vision.md)
 - **Legal/IP**: [Patent Documentation](Patent.md)
 

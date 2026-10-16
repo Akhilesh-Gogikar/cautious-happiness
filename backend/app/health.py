@@ -2,6 +2,7 @@ import os
 import httpx
 from redis import Redis
 from app.cache import r as redis_client
+from app.core.ai_client import gemini_api_key
 
 from app.db.session import engine
 from sqlalchemy import text
@@ -35,5 +36,5 @@ async def get_system_health():
         "ollama": await check_ollama(ollama_host),
         "redis": check_redis(),
         "database": await check_db(),
-        "gemini_configured": bool(os.getenv("GEMINI_API_KEY"))
+        "gemini_configured": gemini_api_key() is not None
     }

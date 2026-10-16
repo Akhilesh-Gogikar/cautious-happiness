@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { MarketTable } from '@/components/dashboard/market-table';
 import { DataMatrix } from '@/components/dashboard/data-matrix-feed';
 import { StatCards } from '@/components/dashboard/stat-cards';
@@ -20,9 +19,8 @@ import { ChatView } from '@/components/dashboard/chat-view';
 import { IntelligenceView } from '@/components/dashboard/intelligence-view';
 import { AlpacaDashboard } from '@/components/dashboard/alpaca-dashboard';
 import { Activity, Globe, ShieldCheck, Cpu, Zap, TrendingUp } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRequireAuth } from '@/lib/auth';
+import { AuthPending } from '@/components/auth/auth-pending';
 
 // Basic Placeholder Component for WIP Views
 function ViewPlaceholder({ title }: { title: string }) {
@@ -58,20 +56,9 @@ function ViewPlaceholder({ title }: { title: string }) {
 
 export default function Home() {
     const [currentView, setCurrentView] = useState('markets');
-    const { user, isLoading } = useAuth();
-    const router = useRouter();
+    const user = useRequireAuth();
 
-    useEffect(() => {
-        if (!isLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, isLoading, router]);
-
-    if (isLoading || !user) {
-        return <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-t-2 border-primary animate-spin" />
-        </div>;
-    }
+    if (!user) return <AuthPending />;
 
     return (
         <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30 selection:text-white">
@@ -122,14 +109,6 @@ export default function Home() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <ConnectButton
-                                    accountStatus={{
-                                        smallScreen: 'avatar',
-                                        largeScreen: 'full',
-                                    }}
-                                    showBalance={false}
-                                    chainStatus="icon"
-                                />
                                 <NotificationCenter />
                                 <SettingsModal />
                             </div>

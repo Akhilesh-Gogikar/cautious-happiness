@@ -3,26 +3,34 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { Mail, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { User, Lock, ArrowRight, ShieldCheck, Zap, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const { login } = useAuth();
     const router = useRouter();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (!email || !email.includes('@')) {
-            setError('Please enter a valid email address.');
+        if (!username.trim() || !password) {
+            setError('Enter your username and password.');
             return;
         }
 
-        // Extremely simple auth: Login and redirect
-        login(email);
-        router.push('/dashboard');
+        setSubmitting(true);
+        try {
+            // The backend checks the credentials and issues the session token.
+            await login(username.trim(), password);
+            router.push('/dashboard');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Sign-in failed.');
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -51,32 +59,49 @@ export default function LoginPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                         <div className="space-y-2">
-                            <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                <Mail className="w-3 h-3 text-primary" />
-                                Operator Email
+                            <label htmlFor="username" className="text-xs font-mono text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                <User className="w-3 h-3 text-primary" />
+                                Username
                             </label>
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="enter.alias@domain.com"
-                                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-mono text-sm"
-                                />
-                                {error && (
-                                    <p className="absolute -bottom-6 left-0 text-[10px] text-red-500 font-mono flex items-center gap-1">
-                                        {error}
-                                    </p>
-                                )}
-                            </div>
+                            <input
+                                id="username"
+                                type="text"
+                                autoComplete="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="operator"
+                                className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-mono text-sm"
+                            />
                         </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="password" className="text-xs font-mono text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                <Lock className="w-3 h-3 text-primary" />
+                                Password
+                            </label>
+                            <input
+                                id="password"
+                                type="password"
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-mono text-sm"
+                            />
+                        </div>
+
+                        {error && (
+                            <p role="alert" className="text-[11px] text-red-500 font-mono">
+                                {error}
+                            </p>
+                        )}
 
                         <button
                             type="submit"
-                            className="w-full bg-primary hover:bg-emerald-400 text-black font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] mt-4 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
+                            disabled={submitting}
+                            className="w-full bg-primary hover:bg-emerald-400 disabled:opacity-60 disabled:hover:scale-100 text-black font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] mt-4 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
                         >
-                            <span>Initialize Uplink</span>
-                            <ArrowRight className="w-4 h-4" />
+                            <span>{submitting ? 'Signing In' : 'Initialize Uplink'}</span>
+                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                         </button>
                     </form>
 

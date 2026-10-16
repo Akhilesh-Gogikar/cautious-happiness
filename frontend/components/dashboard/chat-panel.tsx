@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, Bot, User, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { chatWithModel } from '@/lib/api';
-import { getSelectedModel } from '@/lib/llm-config';
+import { useSelectedModel } from '@/lib/llm-config';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -27,33 +27,24 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ isOpen, onClose, context }: ChatPanelProps) {
-    const [messages, setMessages] = useState<Message[]>([]);
+    // The panel is mounted per audit result, so its context is known from the start.
+    const [messages, setMessages] = useState<Message[]>(() => [
+        {
+            role: 'assistant',
+            content: `I've analyzed "${context.question}".\n\n**Reasoning:**\n${context.reasoning}\n\n**Critique:**\n${context.critique}\n\nWhat would you like to know about my reasoning?`
+        }
+    ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [activeModel, setActiveModel] = useState('lfm-thinking');
+    const activeModel = useSelectedModel();
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Initial context message
-    useEffect(() => {
-        if (isOpen && messages.length === 0) {
-            setMessages([
-                {
-                    role: 'assistant',
-                    content: `I've analyzed "${context.question}".\n\n**Reasoning:**\n${context.reasoning}\n\n**Critique:**\n${context.critique}\n\nWhat would you like to know about my reasoning?`
-                }
-            ]);
-        }
-    }, [isOpen, context, messages.length]);
-
+    // Also on open: the intro exists before the panel's scroll area does.
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages]);
-
-    useEffect(() => {
-        setActiveModel(getSelectedModel());
-    }, []);
+    }, [messages, isOpen]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;

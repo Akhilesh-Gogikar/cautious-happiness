@@ -4,12 +4,39 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
+import logging
 import os
+import secrets
+
+logger = logging.getLogger("alpha_insights")
+
+# Values that are public (this repository's old default and the .env.example
+# placeholder), so tokens signed with them could be forged by anyone.
+_PUBLIC_SECRET_KEYS = {"", "dev_secret_key_change_in_prod_73847384", "generate_a_secure_random_secret_key"}
+
+
+def _load_secret_key() -> str:
+    key = (os.getenv("SECRET_KEY") or "").strip()
+    if key in _PUBLIC_SECRET_KEYS:
+        logger.warning(
+            "SECRET_KEY is unset or a public placeholder; using a random key, so sign-ins end "
+            "when the server restarts. Set a long random SECRET_KEY in .env."
+        )
+        return secrets.token_urlsafe(64)
+    return key
+
+
+def _load_token_minutes() -> int:
+    try:
+        return max(1, int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")))
+    except ValueError:
+        return 30
+
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_in_prod_73847384")
+SECRET_KEY = _load_secret_key()
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = _load_token_minutes()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")

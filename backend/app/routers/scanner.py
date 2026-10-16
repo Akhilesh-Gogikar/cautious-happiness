@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 import asyncio
@@ -10,7 +10,10 @@ import time
 
 import httpx
 
-router = APIRouter(prefix="/api/v1/scanner", tags=["scanner"])
+from app.core.auth import get_current_active_user
+
+# Every route here needs a signed-in user (QA-012).
+router = APIRouter(prefix="/api/v1/scanner", tags=["scanner"], dependencies=[Depends(get_current_active_user)])
 logger = logging.getLogger("alpha_scanner")
 
 YAHOO_QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"

@@ -1,0 +1,9 @@
+# The image installs its own dependencies (npm ci) and builds its own .next;
+# copying the host's would overwrite them.
+node_modules
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.env*

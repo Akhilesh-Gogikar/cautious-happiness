@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchMarkets, predictMarket, getTaskStatus, API_URL } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchMarkets, predictMarket, getTaskStatus, openTaskLifecycle } from '@/lib/api';
 import { toast } from "sonner";
 import { ChatPanel } from './chat-panel';
 import { DepthChart } from '@/components/dashboard/depth-chart';
@@ -47,33 +47,35 @@ export function MarketTable() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const loadMarkets = useCallback(async (isManualRefresh = false) => {
-        if (isManualRefresh) {
-            setIsRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-
-        try {
-            const data = await fetchMarkets();
-            setMarkets(data);
-            setLoadError(null);
-            if (isManualRefresh) {
-                toast.success('Watchlist refreshed', { description: `${data.length} markets synchronized.` });
-            }
-        } catch {
-            const message = 'Unable to load markets. Verify backend connectivity.';
-            setLoadError(message);
-            toast.error('Market feed unavailable', { description: message });
-        } finally {
-            setLoading(false);
-            setIsRefreshing(false);
-        }
-    }, []);
+    // State changes only once the request settles (in the callbacks). `loading` starts
+    // true for the first load; a refresh sets isRefreshing before calling this.
+    const loadMarkets = useCallback((isManualRefresh = false) =>
+        fetchMarkets()
+            .then((data) => {
+                setMarkets(data);
+                setLoadError(null);
+                if (isManualRefresh) {
+                    toast.success('Watchlist refreshed', { description: `${data.length} markets synchronized.` });
+                }
+            })
+            .catch(() => {
+                const message = 'Unable to load markets. Verify backend connectivity.';
+                setLoadError(message);
+                toast.error('Market feed unavailable', { description: message });
+            })
+            .finally(() => {
+                setLoading(false);
+                setIsRefreshing(false);
+            }), []);
 
     useEffect(() => {
         loadMarkets();
     }, [loadMarkets]);
+
+    const refreshMarkets = () => {
+        setIsRefreshing(true);
+        loadMarkets(true);
+    };
 
     const filteredMarkets = useMemo(() => {
         const categoryFiltered = filter === 'ALL'
@@ -93,7 +95,14 @@ export function MarketTable() {
     // Sort by volume descending for watchlist
     const sortedMarkets = [...filteredMarkets].sort((a, b) => b.volume_24h - a.volume_24h);
 
+    // The audit on screen. Starting another closes the previous socket, and late
+    // messages or results from an earlier audit are ignored.
+    const auditRef = useRef<{ taskId: string; ws: WebSocket } | null>(null);
+    useEffect(() => () => auditRef.current?.ws.close(), []);
+
     const handlePredict = async (market: any) => {
+        auditRef.current?.ws.close();
+        auditRef.current = null;
         setSelectedMarket(market);
         setPredicting(true);
         setPrediction(null);
@@ -104,16 +113,19 @@ export function MarketTable() {
             toast.info("Mirroring Initialized", { description: "Establishing Neural Handshake..." });
             setStatusMessage("Establishing peer handshake...");
 
-            const wsUrl = API_URL.replace('http', 'ws') + `/ws/lifecycle/${task_id}`;
-            const ws = new WebSocket(wsUrl);
+            const ws = openTaskLifecycle(task_id);
+            auditRef.current = { taskId: task_id, ws };
+            const isCurrent = () => auditRef.current?.taskId === task_id;
 
             ws.onmessage = (event) => {
+                if (!isCurrent()) return;
                 const data = JSON.parse(event.data);
                 if (data.event === 'status') {
                     setStatusMessage(data.message);
                 } else if (data.event === 'complete') {
                     ws.close();
                     getTaskStatus(task_id).then(status => {
+                        if (!isCurrent()) return;
                         if (status.result?.error === 'model_missing') {
                             setPredicting(false);
                             toast.error("AI Model Not Found", { description: "Please run ./setup_docker_model.sh" });
@@ -122,6 +134,11 @@ export function MarketTable() {
                         setPrediction(status.result);
                         setPredicting(false);
                         toast.success("Analysis Complete", { description: "Divergence audited." });
+                    }).catch(err => {
+                        if (!isCurrent()) return;
+                        console.error(err);
+                        setPredicting(false);
+                        toast.error("Analysis Failed", { description: "Could not load the analysis result." });
                     });
                 } else if (data.event === 'failed') {
                     ws.close();
@@ -131,6 +148,7 @@ export function MarketTable() {
             };
 
             ws.onerror = (err) => {
+                if (!isCurrent()) return;
                 console.error("WS Error:", err);
                 setPredicting(false);
             };
@@ -416,7 +434,7 @@ export function MarketTable() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8 border-white/10 bg-black/30 hover:bg-white/10"
-                                onClick={() => loadMarkets(true)}
+                                onClick={refreshMarkets}
                                 disabled={isRefreshing}
                                 aria-label="Refresh watchlist"
                             >

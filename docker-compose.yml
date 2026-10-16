@@ -3,36 +3,58 @@ version: '3.8'
 services:
   # ---------------------------------------------------------------------------
   # 1. Setup Service (One-off)
-  #    Downloads the AI model to a shared volume.
+  #    Downloads the AI model (about 730 MB) to a shared volume. Skipped when
+  #    the file is already there.
   # ---------------------------------------------------------------------------
   setup_model:
-    image: alpine:latest
+    image: alpine:3.20
     container_name: alphainsights-setup
     volumes:
-      - ./backend/setup_model.sh:/setup.sh
+      - ./backend/setup_model.sh:/setup.sh:ro
       - ollama_downloads:/models
     command: >
-      sh -c "apk add --no-cache curl bash && /setup.sh"
+      sh -c "apk add --no-cache curl bash && bash /setup.sh"
     networks:
       - alphainsights-net
 
   # ---------------------------------------------------------------------------
-  # 2. AI Inference Engines (llama.cpp)
+  # 2. AI Inference Engine (llama.cpp)
+  #    llama-server running the GGUF that setup_model downloaded. Configured
+  #    through LLAMA_ARG_* variables (each mirrors a llama-server flag). For
+  #    runs without the model, use the mock instead:
+  #      docker compose -f docker-compose.yml -f docker-compose.mock-llm.yml up
   # ---------------------------------------------------------------------------
   text-gen-cpp:
-    build:
-      context: ./text-gen-cpp-mock
+    # Pinned build; LFM2.5 needs a llama.cpp recent enough to know its architecture.
+    image: ghcr.io/ggml-org/llama.cpp:server-b11243
     restart: unless-stopped
     container_name: alphainsights-text-gen-cpp
+    volumes:
+      - ollama_downloads:/models:ro
+    environment:
+      - LLAMA_ARG_MODEL=/models/LFM2.5-1.2B-Thinking-Q4_K_M.gguf
+      - LLAMA_ARG_ALIAS=lfm-thinking
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8080
+      # Total context, shared by the server's parallel slots.
+      - LLAMA_ARG_CTX_SIZE=32768
+      # Cap the prompt cache (MiB of host RAM); llama-server's default is 8 GiB.
+      - LLAMA_ARG_CACHE_RAM=256
+    # Reachable from this machine only; the app talks to it over the compose network.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     networks:
       - alphainsights-net
     depends_on:
       setup_model:
         condition: service_completed_successfully
-
-
+    healthcheck:
+      # /health answers 503 until the model is loaded.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
 
   # ---------------------------------------------------------------------------
   # 3. Backend API (FastAPI)
@@ -43,16 +65,20 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     container_name: alphainsights-backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
+    # Runs the code built into the image (no source mount, no auto-reload):
+    # after changing backend code, rebuild with
+    # docker compose up -d --build backend worker (run.sh does this).
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    # This machine only; other machines reach the API through nginx (/api/).
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/polymarket
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - LLAMA_CPP_HOST=http://text-gen-cpp:8080
+      # Compose runs no Ollama; empty keeps every model on llama.cpp.
+      - OLLAMA_HOST=
     depends_on:
       db:
         condition: service_healthy
@@ -73,10 +99,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Baked into the image's /api proxy at build time.
+        BACKEND_URL: http://backend:8000
     restart: unless-stopped
     container_name: alphainsights-frontend
+    # This machine only; other machines reach the UI through nginx.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=/api
       - BACKEND_URL=http://backend:8000
@@ -100,9 +130,10 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/polymarket
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - LLAMA_CPP_HOST=http://text-gen-cpp:8080
+      # Compose runs no Ollama; empty keeps every model on llama.cpp.
+      - OLLAMA_HOST=
       - HF_HOME=/root/.cache/huggingface
     volumes:
-      - ./backend:/app
       - huggingface_cache:/root/.cache/huggingface
     depends_on:
       redis:
@@ -125,8 +156,8 @@ services:
       - POSTGRES_DB=polymarket
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Not published on the host: the app reaches it as db:5432 on the compose
+    # network. For a shell: docker compose exec db psql -U postgres polymarket
     networks:
       - alphainsights-net
     healthcheck:
@@ -139,8 +170,8 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     container_name: alphainsights-redis
-    ports:
-      - "6379:6379"
+    # Not published on the host: the app reaches it as redis:6379 on the
+    # compose network. For a shell: docker compose exec redis redis-cli
     volumes:
       - redis_data:/data
     networks:

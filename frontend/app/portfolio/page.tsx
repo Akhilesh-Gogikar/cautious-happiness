@@ -2,11 +2,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import NextLink from "next/link";
 import { Link, ArrowLeft, RefreshCw, LayoutDashboard } from "lucide-react";
 import { PortfolioView } from "@/components/dashboard/portfolio-view";
+import { AuthPending } from "@/components/auth/auth-pending";
+import { useRequireAuth } from "@/lib/auth";
 
 export default function PortfolioPage() {
+    const user = useRequireAuth();
+    if (!user) return <AuthPending />;
+
     return (
         <main className="min-h-screen bg-[#050505] text-white p-6 space-y-8 max-w-[1600px] mx-auto relative overflow-hidden">
             {/* Background Glows */}
@@ -23,9 +28,9 @@ export default function PortfolioPage() {
                             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" /> Live_Sync
                         </span>
                     </div>
-                    <a href="/" className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono hover:text-white transition-colors group">
+                    <NextLink href="/" className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono hover:text-white transition-colors group">
                         <ArrowLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" /> RETURN TO TERMINAL
-                    </a>
+                    </NextLink>
                 </div>
                 <div className="flex items-center gap-4">
                     <button className="h-10 w-10 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors">
@@ -34,10 +39,6 @@ export default function PortfolioPage() {
                     <button className="h-10 px-4 flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors text-xs font-mono font-bold">
                         <LayoutDashboard className="w-4 h-4" /> LAYOUT
                     </button>
-                    {/* Assuming RainbowKit is configured, kept for wallet integration */}
-                    <div className="scale-90 transform origin-right">
-                        <ConnectButton showBalance={true} />
-                    </div>
                 </div>
             </header>
 

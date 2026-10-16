@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 from typing import AsyncIterator
 import time
@@ -6,6 +8,14 @@ from app.models import ChatRequest, ChatResponse
 from app.db.models import ChatMessage
 from app.db.session import get_db
 from app.intelligence.application.engine import IntelligenceMirrorEngine
+
+logger = logging.getLogger("alpha_insights")
+
+
+def format_sse(event: str, payload: dict) -> str:
+    """One Server-Sent Event; json.dumps escapes quotes, newlines and control characters."""
+    return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
+
 
 class ChatService:
     def __init__(self, engine: IntelligenceMirrorEngine):
@@ -91,13 +101,19 @@ class ChatService:
             elif os.getenv("OLLAMA_HOST") and model != "lfm-thinking":
                 provider = "ollama"
 
-            yield 'event: thinking\ndata: {"phase":"thinking","message":"Building reasoning graph..."}\n\n'
+            yield format_sse("thinking", {"phase": "thinking", "message": "Building reasoning graph..."})
 
             chunks = []
-            async for chunk in self.engine.intelligence_service.ai_stream(prompt, provider=provider, model=model):
-                chunks.append(chunk)
-                safe = chunk.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-                yield f'event: token\ndata: {{"token":"{safe}"}}\n\n'
+            failed = False
+            try:
+                async for chunk in self.engine.intelligence_service.ai_stream(prompt, provider=provider, model=model):
+                    chunks.append(chunk)
+                    yield format_sse("token", {"token": chunk})
+            except Exception:
+                # Headers are already sent, so report the failure in-band; the
+                # reply is still saved below to keep the history alternating.
+                logger.exception("Chat stream generation failed")
+                failed = True
 
             response_text = "".join(chunks).strip() or "I couldn't generate a response."
 
@@ -110,6 +126,8 @@ class ChatService:
             session.add(assistant_msg)
             await session.commit()
 
-            safe_response = response_text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-            yield f'event: done\ndata: {{"response":"{safe_response}"}}\n\n'
+            if failed:
+                yield format_sse("error", {"message": "The model failed while generating a response."})
+            else:
+                yield format_sse("done", {"response": response_text})
             return

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
     Dialog,
     DialogContent,
@@ -10,29 +10,33 @@ import {
 import { ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type Ticker = { symbol: string; price: string; change: number };
+
 interface ChartModalProps {
     isOpen: boolean;
     onClose: () => void;
-    ticker: { symbol: string; price: string; change: number } | null;
+    ticker: Ticker | null;
+}
+
+// Mock data based on the current price
+function mockSeries(price: string): number[] {
+    const points = [];
+    let currentVal = parseFloat(price.replace(/[^0-9.-]+/g, ""));
+    for (let i = 0; i < 50; i++) {
+        points.push(currentVal);
+        currentVal += (Math.random() - 0.5) * (currentVal * 0.05);
+    }
+    return points;
 }
 
 export function ChartModal({ isOpen, onClose, ticker }: ChartModalProps) {
-    const [dataPoints, setDataPoints] = useState<number[]>([]);
-
-    useEffect(() => {
-        if (isOpen && ticker) {
-            // Generate some mock data based on the current price/change
-            const points = [];
-            let currentVal = parseFloat(ticker.price.replace(/[^0-9.-]+/g, ""));
-            for (let i = 0; i < 50; i++) {
-                points.push(currentVal);
-                currentVal += (Math.random() - 0.5) * (currentVal * 0.05);
-            }
-            setDataPoints(points);
-        }
-    }, [isOpen, ticker]);
-
     if (!ticker) return null;
+    // Mounted for each opened ticker, so every open draws a new series.
+    return <ChartModalContent key={ticker.symbol} isOpen={isOpen} onClose={onClose} ticker={ticker} />;
+}
+
+function ChartModalContent({ isOpen, onClose, ticker }: ChartModalProps & { ticker: Ticker }) {
+    const [dataPoints] = useState(() => mockSeries(ticker.price));
 
     const isPositive = ticker.change >= 0;
     const strokeColor = isPositive ? "#10B981" : "#ef4444";
