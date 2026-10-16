@@ -5,8 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import NextLink from "next/link";
 import { Link, ArrowLeft, RefreshCw, LayoutDashboard } from "lucide-react";
 import { PortfolioView } from "@/components/dashboard/portfolio-view";
+import { AuthPending } from "@/components/auth/auth-pending";
+import { useRequireAuth } from "@/lib/auth";
 
 export default function PortfolioPage() {
+    const user = useRequireAuth();
+    if (!user) return <AuthPending />;
+
     return (
         <main className="min-h-screen bg-[#050505] text-white p-6 space-y-8 max-w-[1600px] mx-auto relative overflow-hidden">
             {/* Background Glows */}
