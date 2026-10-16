@@ -279,7 +279,7 @@ These apply to every card below and are not repeated in each one.
 #### PG-04: `/intelligence` (standalone page)
 - **Job:** None distinct. It duplicates the Intelligence Mirror view.
 - **Today:**
-  - **No auth guard:** trade buttons are reachable logged out (QA-035). Fixed in `64b8dd9`: signed-out visitors go to `/login`, non-admins to `/dashboard` (UI only; the `/mirror` API is still open, QA-012).
+  - **No auth guard:** trade buttons are reachable logged out (QA-035). Fixed in `64b8dd9`: signed-out visitors go to `/login`, non-admins to `/dashboard` (the `/mirror` API also requires sign-in since `d67f361`, QA-012).
   - No app chrome, and no link points to it.
 - **Decision:** Merge. Redirect to `/dashboard/intelligence` behind auth once PG-03 ships the `/dashboard/[view]` routes (Phase 1). Until then, redirect to `/dashboard`.
 - **Requirements:**
