@@ -4,8 +4,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.agents.orchestrator import AgentOrchestrator
+from app.core.auth import get_current_active_user
 
-router = APIRouter()
+# Every route here needs a signed-in user (QA-012). Router dependencies run first,
+# so an anonymous request is refused before the orchestrator (and its embedder) loads.
+router = APIRouter(dependencies=[Depends(get_current_active_user)])
 
 # Single orchestrator instance for demo endpoint, built on first use: constructing
 # it loads the BAAI/bge-m3 embedder (~2 GB), which must not block API startup.

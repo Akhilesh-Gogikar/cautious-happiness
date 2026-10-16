@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from app.core.auth import get_current_active_user
 from app.strategy.models import StrategyGenerationRequest, StrategyCode
 from app.strategy.service import strategy_factory
 
+# Every route here needs a signed-in user (QA-012).
 router = APIRouter(
     prefix="/strategy",
     tags=["strategy"],
+    dependencies=[Depends(get_current_active_user)],
     responses={404: {"description": "Not found"}},
 )
 
