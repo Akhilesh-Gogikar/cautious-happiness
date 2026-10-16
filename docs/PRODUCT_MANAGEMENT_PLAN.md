@@ -279,7 +279,7 @@ These apply to every card below and are not repeated in each one.
 #### PG-04: `/intelligence` (standalone page)
 - **Job:** None distinct. It duplicates the Intelligence Mirror view.
 - **Today:**
-  - **No auth guard:** trade buttons are reachable logged out (QA-035).
+  - **No auth guard:** trade buttons are reachable logged out (QA-035). Fixed in `64b8dd9`: signed-out visitors go to `/login`, non-admins to `/dashboard` (UI only; the `/mirror` API is still open, QA-012).
   - No app chrome, and no link points to it.
 - **Decision:** Merge. Redirect to `/dashboard/intelligence` behind auth once PG-03 ships the `/dashboard/[view]` routes (Phase 1). Until then, redirect to `/dashboard`.
 - **Requirements:**
@@ -303,7 +303,7 @@ These apply to every card below and are not repeated in each one.
   - Visual canvas only. Nodes can't be configured.
   - The graph is lost on reload. Save Draft and Deploy do nothing (QA-032).
   - Its sidebar links always land on Markets.
-  - Non-admins briefly see it before the redirect.
+  - Non-admins briefly see it before the redirect. Fixed in `64b8dd9`: they see the loading spinner until the redirect to `/dashboard`.
 - **Decision:** Hide. Out of MVP scope per the YC plan ("full trade execution automation"). Keep the code behind `FEATURE_AGENT_BUILDER` (PL-08).
 - **Requirements to un-hide (Phase 3):**
   1. Graph is persisted per user, with versions (`agent_graphs` table).
